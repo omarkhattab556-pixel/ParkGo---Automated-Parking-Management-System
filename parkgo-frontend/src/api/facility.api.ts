@@ -23,6 +23,20 @@ export interface FacilityStatus {
   };
 }
 
+export interface HourlyPoint {
+  hour: string; // ISO
+  occupied: number;
+  total: number;
+  occupancy_percent: number;
+}
+
+export interface MaintenanceCallResult {
+  success: true;
+  called_at: string;
+  called_by: string;
+  technician_phone: string;
+}
+
 export const facilityApi = {
   getLoad: async (): Promise<FacilityLoad> => {
     const { data } = await api.get<FacilityLoad>('/facility/load');
@@ -31,6 +45,18 @@ export const facilityApi = {
 
   getStatus: async (): Promise<FacilityStatus> => {
     const { data } = await api.get<FacilityStatus>('/facility/status');
+    return data;
+  },
+
+  getHourly: async (hours = 24): Promise<HourlyPoint[]> => {
+    const { data } = await api.get<HourlyPoint[]>('/facility/hourly', {
+      params: { hours },
+    });
+    return data;
+  },
+
+  callMaintenance: async (): Promise<MaintenanceCallResult> => {
+    const { data } = await api.post<MaintenanceCallResult>('/facility/maintenance');
     return data;
   },
 };

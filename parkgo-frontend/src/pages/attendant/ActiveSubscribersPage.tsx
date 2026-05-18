@@ -1,0 +1,436 @@
+import { useMemo, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Users,
+  Search,
+  Eye,
+  RotateCcw,
+  X,
+  Mail,
+  Phone,
+  Hash,
+  Calendar,
+  Car,
+  CalendarClock,
+} from 'lucide-react';
+import toast from 'react-hot-toast';
+
+import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/ui/Button';
+import { LoadingSpinner } from '@/components/common/LoadingSpinner';
+import { EmptyState } from '@/components/common/EmptyState';
+import { cn } from '@/lib/utils';
+import { subscriberApi, type SubscriberListItem } from '@/api/subscriber.api';
+import {
+  formatCode,
+  formatDate,
+  formatDateTime,
+  formatDuration,
+} from '@/utils/formatters';
+
+type Filter = 'all' | 'active' | 'inactive';
+
+function SubscriberDetailModal({
+  id,
+  onClose,
+}: {
+  id: number;
+  onClose: () => void;
+}) {
+  const qc = useQueryClient();
+  const detail = useQuery({
+    queryKey: ['subscriber', 'detail', id],
+    queryFn: () => subscriberApi.detail(id),
+  });
+
+  const reactivate = useMutation({
+    mutationFn: () => subscriberApi.reactivate(id),
+    onSuccess: () => {
+      toast.success('Subscription reactivated');
+      qc.invalidateQueries({ queryKey: ['subscriber', 'detail', id] });
+      qc.invalidateQueries({ queryKey: ['subscribers'] });
+    },
+    onError: (err: { error?: string; message?: string }) => {
+      toast.error(err.error || err.message || 'Could not reactivate');
+    },
+  });
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-start justify-center p-4 overflow-y-auto"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ scale: 0.94, y: 16 }}
+        animate={{ scale: 1, y: 0 }}
+        exit={{ scale: 0.94, y: 16 }}
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-3xl rounded-3xl bg-white p-6 md:p-8 shadow-2xl my-8"
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-2xl font-bold text-slate-900">
+            Subscriber details
+          </h2>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-lg text-slate-500 hover:bg-slate-100"
+            aria-label="Close"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {detail.isLoading && <LoadingSpinner />}
+        {detail.data && (
+          <div className="space-y-6">
+            {/* Profile */}
+            <section className="rounded-2xl bg-slate-50 p-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-xs uppercase tracking-wider text-slate-500">
+                    Name
+                  </p>
+                  <p className="font-semibold text-slate-900">
+                    {detail.data.user.first_name} {detail.data.user.last_name}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wider text-slate-500 flex items-center gap-1">
+                    <Mail className="h-3 w-3" /> Email
+                  </p>
+                  <p className="font-semibold text-slate-900 truncate">
+                    {detail.data.user.email}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wider text-slate-500 flex items-center gap-1">
+                    <Phone className="h-3 w-3" /> Phone
+                  </p>
+                  <p className="font-semibold text-slate-900">
+                    {detail.data.user.phone_number || '—'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wider text-slate-500 flex items-center gap-1">
+                    <Hash className="h-3 w-3" /> License plate
+                  </p>
+                  <p className="font-semibold text-slate-900">
+                    {detail.data.subscriber?.license_plate_number || '—'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wider text-slate-500 flex items-center gap-1">
+                    <Calendar className="h-3 w-3" /> Registered
+                  </p>
+                  <p className="font-semibold text-slate-900">
+                    {formatDate(detail.data.subscriber?.registration_date)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wider text-slate-500">
+                    Status
+                  </p>
+                  <span
+                    className={cn(
+                      'inline-flex px-2 py-0.5 text-xs font-medium rounded-full',
+                      detail.data.subscriber?.status === 'active'
+                        ? 'bg-emerald-100 text-emerald-700'
+                        : 'bg-danger-100 text-danger-700'
+                    )}
+                  >
+                    {detail.data.subscriber?.status} ·{' '}
+                    {detail.data.subscriber?.delay_count} delays
+                  </span>
+                </div>
+              </div>
+
+              {detail.data.subscriber?.status === 'inactive' && (
+                <div className="mt-4">
+                  <Button
+                    variant="success"
+                    onClick={() => reactivate.mutate()}
+                    loading={reactivate.isPending}
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                    Reactivate subscription
+                  </Button>
+                </div>
+              )}
+            </section>
+
+            {/* Recent reservations */}
+            <section>
+              <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2 mb-3">
+                <CalendarClock className="h-4 w-4 text-slate-500" />
+                Recent reservations
+              </h3>
+              {detail.data.reservations.length === 0 ? (
+                <p className="text-sm text-slate-500 italic">None yet</p>
+              ) : (
+                <div className="rounded-xl border border-slate-200 overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-slate-50 text-slate-500 text-xs uppercase">
+                      <tr>
+                        <th className="px-3 py-2 text-left">Code</th>
+                        <th className="px-3 py-2 text-left">Space</th>
+                        <th className="px-3 py-2 text-left">Start</th>
+                        <th className="px-3 py-2 text-left">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {detail.data.reservations.slice(0, 6).map((r) => (
+                        <tr key={r.reservation_id}>
+                          <td className="px-3 py-2 font-mono text-slate-900">
+                            {formatCode(r.confirmation_code)}
+                          </td>
+                          <td className="px-3 py-2 text-slate-700">
+                            #{r.parking_space}
+                          </td>
+                          <td className="px-3 py-2 text-slate-600">
+                            {formatDateTime(r.reservation_start)}
+                          </td>
+                          <td className="px-3 py-2">
+                            <span
+                              className={cn(
+                                'inline-flex px-2 py-0.5 text-xs rounded-full',
+                                r.status === 'active'
+                                  ? 'bg-emerald-100 text-emerald-700'
+                                  : 'bg-slate-100 text-slate-600'
+                              )}
+                            >
+                              {r.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+
+            {/* Recent parkings */}
+            <section>
+              <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2 mb-3">
+                <Car className="h-4 w-4 text-slate-500" />
+                Recent parkings
+              </h3>
+              {detail.data.parkings.length === 0 ? (
+                <p className="text-sm text-slate-500 italic">None yet</p>
+              ) : (
+                <div className="rounded-xl border border-slate-200 overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-slate-50 text-slate-500 text-xs uppercase">
+                      <tr>
+                        <th className="px-3 py-2 text-left">Code</th>
+                        <th className="px-3 py-2 text-left">Space</th>
+                        <th className="px-3 py-2 text-left">Parked</th>
+                        <th className="px-3 py-2 text-left">Duration</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {detail.data.parkings.slice(0, 6).map((p) => {
+                        const start = new Date(p.parking_date).getTime();
+                        const end = p.retrieval_time
+                          ? new Date(p.retrieval_time).getTime()
+                          : Date.now();
+                        const minutes = Math.floor((end - start) / 60000);
+                        return (
+                          <tr key={p.parking_code}>
+                            <td className="px-3 py-2 font-mono text-slate-900">
+                              {formatCode(p.confirmation_code)}
+                            </td>
+                            <td className="px-3 py-2 text-slate-700">
+                              #{p.parking_space}
+                            </td>
+                            <td className="px-3 py-2 text-slate-600">
+                              {formatDateTime(p.parking_date)}
+                            </td>
+                            <td className="px-3 py-2 text-slate-700">
+                              {p.retrieval_time
+                                ? formatDuration(minutes)
+                                : `${formatDuration(minutes)} (active)`}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+          </div>
+        )}
+      </motion.div>
+    </motion.div>
+  );
+}
+
+export default function ActiveSubscribersPage() {
+  const { data, isLoading } = useQuery({
+    queryKey: ['subscribers', 'list'],
+    queryFn: () => subscriberApi.list(),
+  });
+
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState<Filter>('all');
+  const [openId, setOpenId] = useState<number | null>(null);
+
+  const filtered = useMemo<SubscriberListItem[]>(() => {
+    if (!data) return [];
+    const q = search.trim().toLowerCase();
+    return data.filter((u) => {
+      const status = u.subscriber?.status || 'active';
+      if (filter !== 'all' && status !== filter) return false;
+      if (!q) return true;
+      return (
+        u.first_name.toLowerCase().includes(q) ||
+        u.last_name.toLowerCase().includes(q) ||
+        u.email.toLowerCase().includes(q) ||
+        (u.phone_number || '').includes(q) ||
+        (u.subscriber?.license_plate_number || '').toLowerCase().includes(q) ||
+        String(u.id).includes(q)
+      );
+    });
+  }, [data, search, filter]);
+
+  return (
+    <div className="space-y-6">
+      <header className="flex items-center gap-3">
+        <div className="h-11 w-11 rounded-xl bg-primary-50 flex items-center justify-center">
+          <Users className="h-5 w-5 text-primary-600" />
+        </div>
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
+            Active subscribers
+          </h1>
+          <p className="text-slate-500 text-sm">
+            Search by name, email, license plate, or ID
+          </p>
+        </div>
+      </header>
+
+      <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+        <div className="flex-1">
+          <Input
+            placeholder="Search..."
+            icon={<Search className="h-4 w-4" />}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        <div className="inline-flex bg-white rounded-xl border border-slate-200 p-1 gap-1 self-start sm:self-auto">
+          {(['all', 'active', 'inactive'] as Filter[]).map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={cn(
+                'px-4 py-1.5 rounded-lg text-sm font-medium capitalize transition',
+                filter === f
+                  ? 'bg-primary-500 text-white shadow-sm'
+                  : 'text-slate-600 hover:bg-slate-50'
+              )}
+            >
+              {f}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {isLoading && <LoadingSpinner />}
+
+      {!isLoading && filtered.length === 0 && (
+        <EmptyState
+          icon={Users}
+          title="No subscribers match"
+          description={
+            data && data.length === 0
+              ? 'Register your first subscriber from the dashboard.'
+              : 'Try a different search or filter.'
+          }
+        />
+      )}
+
+      {!isLoading && filtered.length > 0 && (
+        <div className="rounded-2xl bg-white border border-slate-100 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
+                <tr>
+                  <th className="px-4 py-3 text-left font-semibold">ID</th>
+                  <th className="px-4 py-3 text-left font-semibold">Name</th>
+                  <th className="px-4 py-3 text-left font-semibold">Email</th>
+                  <th className="px-4 py-3 text-left font-semibold">Phone</th>
+                  <th className="px-4 py-3 text-left font-semibold">License</th>
+                  <th className="px-4 py-3 text-left font-semibold">Status</th>
+                  <th className="px-4 py-3 text-left font-semibold">Delays</th>
+                  <th className="px-4 py-3 text-left font-semibold">Joined</th>
+                  <th className="px-4 py-3 text-right font-semibold">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filtered.map((u) => {
+                  const status = u.subscriber?.status || 'active';
+                  return (
+                    <tr key={u.id} className="hover:bg-slate-50">
+                      <td className="px-4 py-3 font-mono text-slate-700">
+                        {u.id}
+                      </td>
+                      <td className="px-4 py-3 font-medium text-slate-900">
+                        {u.first_name} {u.last_name}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">{u.email}</td>
+                      <td className="px-4 py-3 text-slate-600">
+                        {u.phone_number || '—'}
+                      </td>
+                      <td className="px-4 py-3 text-slate-700 font-mono text-xs">
+                        {u.subscriber?.license_plate_number || '—'}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={cn(
+                            'inline-flex px-2 py-0.5 text-xs font-medium rounded-full',
+                            status === 'active'
+                              ? 'bg-emerald-100 text-emerald-700'
+                              : 'bg-danger-100 text-danger-700'
+                          )}
+                        >
+                          {status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-slate-700 tabular-nums">
+                        {u.subscriber?.delay_count ?? 0}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">
+                        {formatDate(u.subscriber?.registration_date)}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          onClick={() => setOpenId(u.id)}
+                          className="inline-flex items-center gap-1 text-sm font-medium text-primary-600 hover:text-primary-700"
+                        >
+                          <Eye className="h-4 w-4" />
+                          View
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      <AnimatePresence>
+        {openId != null && (
+          <SubscriberDetailModal id={openId} onClose={() => setOpenId(null)} />
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}

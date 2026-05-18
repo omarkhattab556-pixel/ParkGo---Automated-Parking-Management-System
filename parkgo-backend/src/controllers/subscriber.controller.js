@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs';
 import supabase from '../config/supabase.js';
+import { sendWelcomeEmail } from '../services/email.service.js';
 
 const stripPassword = (u) => {
   if (!u) return u;
@@ -8,8 +9,189 @@ const stripPassword = (u) => {
 };
 
 /**
- * GET /api/subscribers/me/profile
- * Returns user + subscriber details + stats for the logged-in subscriber.
+ * POST /api/subscribers
+ * Attendant registers a new subscriber.
+ * Body: { first_name, last_name, email, phone_number, license_plate, password }
+ */
+export const registerSubscriber = async (req, res, next) => {
+  try {
+    const {
+      first_name,
+      last_name,
+      email,
+      phone_number,
+      license_plate,
+      password,
+    } = req.body;
+
+    const normalizedEmail = email.toLowerCase();
+
+    const { data: existing } = await supabase
+      .from('user')
+      .select('id')
+      .eq('email', normalizedEmail)
+      .maybeSingle();
+    if (existing) {
+      return res.status(409).json({ error: 'Email already registered' });
+    }
+
+    const hashed = await bcrypt.hash(password, 10);
+
+    const { data: newUser, error: insertUserErr } = await supabase
+      .from('user')
+      .insert({
+        first_name,
+        last_name,
+        email: normalizedEmail,
+        password: hashed,
+        phone_number: phone_number || null,
+        user_type: 'subscriber',
+      })
+      .select('*')
+      .single();
+    if (insertUserErr) throw insertUserErr;
+
+    const { data: newSub, error: insertSubErr } = await supabase
+      .from('subscriber')
+      .insert({
+        subscriber_num: newUser.id,
+        license_plate_number: license_plate || null,
+        status: 'active',
+        delay_count: 0,
+      })
+      .select('*')
+      .single();
+    if (insertSubErr) {
+      // best-effort cleanup
+      await supabase.from('user').delete().eq('id', newUser.id);
+      throw insertSubErr;
+    }
+
+    sendWelcomeEmail(newUser, password).catch((e) =>
+      console.error('[email] welcome:', e)
+    );
+
+    return res.status(201).json({
+      success: true,
+      user: stripPassword(newUser),
+      subscriber: newSub,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * GET /api/subscribers
+ * Attendant/manager — list all subscribers with their user info.
+ */
+export const listSubscribers = async (_req, res, next) => {
+  try {
+    const { data: users, error: uErr } = await supabase
+      .from('user')
+      .select('id, first_name, last_name, email, phone_number, user_type')
+      .eq('user_type', 'subscriber')
+      .order('id', { ascending: false });
+    if (uErr) throw uErr;
+
+    const ids = (users || []).map((u) => u.id);
+    let subsByNum = {};
+    if (ids.length > 0) {
+      const { data: subs, error: sErr } = await supabase
+        .from('subscriber')
+        .select('*')
+        .in('subscriber_num', ids);
+      if (sErr) throw sErr;
+      subsByNum = Object.fromEntries((subs || []).map((s) => [s.subscriber_num, s]));
+    }
+
+    const merged = (users || []).map((u) => ({
+      ...u,
+      subscriber: subsByNum[u.id] || null,
+    }));
+    return res.json(merged);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * GET /api/subscribers/:id
+ * Returns user + subscriber + their reservations & parkings.
+ */
+export const getSubscriberDetail = async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id)) return res.status(400).json({ error: 'Invalid id' });
+
+    const { data: user, error: uErr } = await supabase
+      .from('user')
+      .select('id, first_name, last_name, email, phone_number, user_type')
+      .eq('id', id)
+      .maybeSingle();
+    if (uErr) throw uErr;
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (user.user_type !== 'subscriber') {
+      return res.status(400).json({ error: 'Not a subscriber' });
+    }
+
+    const [{ data: sub }, { data: reservations }, { data: parkings }] =
+      await Promise.all([
+        supabase
+          .from('subscriber')
+          .select('*')
+          .eq('subscriber_num', id)
+          .maybeSingle(),
+        supabase
+          .from('reservation')
+          .select('*')
+          .eq('subscriber_num', id)
+          .order('reservation_start', { ascending: false })
+          .limit(50),
+        supabase
+          .from('parking')
+          .select('*')
+          .eq('subscriber_num', id)
+          .order('parking_date', { ascending: false })
+          .limit(50),
+      ]);
+
+    return res.json({
+      user,
+      subscriber: sub,
+      reservations: reservations || [],
+      parkings: parkings || [],
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * PATCH /api/subscribers/:id/reactivate
+ * Attendant resets delay_count and sets status='active'.
+ */
+export const reactivateSubscriber = async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id)) return res.status(400).json({ error: 'Invalid id' });
+
+    const { data: updated, error } = await supabase
+      .from('subscriber')
+      .update({ status: 'active', delay_count: 0 })
+      .eq('subscriber_num', id)
+      .select('*')
+      .maybeSingle();
+    if (error) throw error;
+    if (!updated) return res.status(404).json({ error: 'Subscriber not found' });
+    return res.json({ success: true, subscriber: updated });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * GET /api/subscribers/me/profile  (subscriber)
  */
 export const myProfile = async (req, res, next) => {
   try {
@@ -58,9 +240,7 @@ export const myProfile = async (req, res, next) => {
 };
 
 /**
- * PATCH /api/subscribers/:id
- * Subscriber updates own license_plate / phone_number / password.
- * Requires current_password to change anything.
+ * PATCH /api/subscribers/:id  (subscriber updates own details)
  */
 export const updateOwnDetails = async (req, res, next) => {
   try {

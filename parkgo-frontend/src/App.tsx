@@ -19,7 +19,15 @@ import CancelReservationPage from '@/pages/subscriber/CancelReservationPage';
 import UpdateDetailsPage from '@/pages/subscriber/UpdateDetailsPage';
 import ProfilePage from '@/pages/subscriber/ProfilePage';
 
+import AttendantLayout from '@/pages/attendant/AttendantLayout';
 import AttendantDashboard from '@/pages/attendant/AttendantDashboard';
+import RegisterSubscriberPage from '@/pages/attendant/RegisterSubscriberPage';
+import ActiveSubscribersPage from '@/pages/attendant/ActiveSubscribersPage';
+import ActiveParkingsPage from '@/pages/attendant/ActiveParkingsPage';
+import FacilityMaintenancePage from '@/pages/attendant/FacilityMaintenancePage';
+import FacilityStatusPage from '@/pages/attendant/FacilityStatusPage';
+import LoadLevelPage from '@/pages/attendant/LoadLevelPage';
+
 import ManagerDashboard from '@/pages/manager/ManagerDashboard';
 
 const queryClient = new QueryClient({
@@ -81,13 +89,22 @@ function App() {
           </Route>
 
           <Route
-            path="/attendant/*"
+            path="/attendant"
             element={
               <ProtectedRoute allowedRoles={['attendant']}>
-                <AttendantDashboard />
+                <AttendantLayout />
               </ProtectedRoute>
             }
-          />
+          >
+            <Route index element={<AttendantDashboard />} />
+            <Route path="register" element={<RegisterSubscriberPage />} />
+            <Route path="subscribers" element={<ActiveSubscribersPage />} />
+            <Route path="active-parkings" element={<ActiveParkingsPage />} />
+            <Route path="facility-status" element={<FacilityStatusPage />} />
+            <Route path="load-level" element={<LoadLevelPage />} />
+            <Route path="maintenance" element={<FacilityMaintenancePage />} />
+            <Route path="*" element={<Navigate to="/attendant" replace />} />
+          </Route>
 
           <Route
             path="/manager/*"

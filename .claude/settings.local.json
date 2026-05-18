@@ -6,7 +6,15 @@
       "Bash(node --check src/controllers/auth.controller.js)",
       "Bash(node --check src/routes/auth.routes.js)",
       "Bash(timeout 5 node src/server.js)",
-      "Bash(curl -s -X POST http://localhost:5000/api/auth/login -H \"Content-Type: application/json\" -d '{\"email\":\"nobody@parkgo.com\",\"password\":\"password123\"}')"
+      "Bash(curl -s -X POST http://localhost:5000/api/auth/login -H \"Content-Type: application/json\" -d '{\"email\":\"nobody@parkgo.com\",\"password\":\"password123\"}')",
+      "Bash(npx tsc *)",
+      "Bash(npm run *)",
+      "Bash(node src/server.js)",
+      "Bash(curl -s http://localhost:5000/health)",
+      "Bash(curl -s -X POST http://localhost:5000/api/subscribers -H \"Content-Type: application/json\" -d '{}')",
+      "Bash(curl -s http://localhost:5000/api/subscribers/1 -H \"Authorization: Bearer x\")",
+      "Bash(curl -s http://localhost:5000/api/facility/hourly -H \"Authorization: Bearer x\")",
+      "Bash(curl -s -X POST http://localhost:5000/api/facility/maintenance -H \"Authorization: Bearer x\")"
     ]
   }
 }

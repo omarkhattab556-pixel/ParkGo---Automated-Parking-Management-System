@@ -1,11 +1,32 @@
-import { History, Car } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { History, Car, ChevronLeft, ChevronRight } from 'lucide-react';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { EmptyState } from '@/components/common/EmptyState';
 import { useMyParkingHistory } from '@/hooks/useParking';
 import { formatCode, formatDateTime, formatDuration } from '@/utils/formatters';
+import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/ui/Button';
+
+const PAGE_SIZE = 15;
 
 export default function ParkingHistoryPage() {
   const { data, isLoading } = useMyParkingHistory();
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+  const [page, setPage] = useState(1);
+
+  const filtered = useMemo(() => {
+    if (!data) return [];
+    return data.filter((p) => {
+      const ts = new Date(p.parking_date).getTime();
+      if (from && ts < new Date(from).getTime()) return false;
+      if (to && ts > new Date(to).getTime() + 24 * 3600_000) return false;
+      return true;
+    });
+  }, [data, from, to]);
+
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
     <div className="space-y-6">
@@ -17,9 +38,51 @@ export default function ParkingHistoryPage() {
           <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
             Parking history
           </h1>
-          <p className="text-slate-500 text-sm">All your past and current sessions</p>
+          <p className="text-slate-500 text-sm">
+            All your past and current sessions
+          </p>
         </div>
       </header>
+
+      {!isLoading && data && data.length > 0 && (
+        <div className="flex flex-col sm:flex-row gap-3 sm:items-end">
+          <div className="sm:w-48">
+            <Input
+              type="date"
+              label="From"
+              value={from}
+              onChange={(e) => {
+                setFrom(e.target.value);
+                setPage(1);
+              }}
+            />
+          </div>
+          <div className="sm:w-48">
+            <Input
+              type="date"
+              label="To"
+              value={to}
+              onChange={(e) => {
+                setTo(e.target.value);
+                setPage(1);
+              }}
+            />
+          </div>
+          {(from || to) && (
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setFrom('');
+                setTo('');
+                setPage(1);
+              }}
+              className="sm:ml-auto"
+            >
+              Clear filter
+            </Button>
+          )}
+        </div>
+      )}
 
       {isLoading && <LoadingSpinner />}
 
@@ -31,61 +94,104 @@ export default function ParkingHistoryPage() {
         />
       )}
 
-      {!isLoading && data && data.length > 0 && (
-        <div className="rounded-2xl bg-white border border-slate-100 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
-                <tr>
-                  <th className="px-4 py-3 text-left font-semibold">Code</th>
-                  <th className="px-4 py-3 text-left font-semibold">Space</th>
-                  <th className="px-4 py-3 text-left font-semibold">Parked</th>
-                  <th className="px-4 py-3 text-left font-semibold">Retrieved</th>
-                  <th className="px-4 py-3 text-left font-semibold">Duration</th>
-                  <th className="px-4 py-3 text-left font-semibold">Extensions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {data.map((p) => {
-                  const start = new Date(p.parking_date).getTime();
-                  const end = p.retrieval_time
-                    ? new Date(p.retrieval_time).getTime()
-                    : Date.now();
-                  const minutes = Math.floor((end - start) / 60000);
-                  return (
-                    <tr key={p.parking_code} className="hover:bg-slate-50">
-                      <td className="px-4 py-3 font-mono font-semibold text-slate-900">
-                        {formatCode(p.confirmation_code)}
-                      </td>
-                      <td className="px-4 py-3 text-slate-700">
-                        #{p.parking_space}
-                      </td>
-                      <td className="px-4 py-3 text-slate-600">
-                        {formatDateTime(p.parking_date)}
-                      </td>
-                      <td className="px-4 py-3 text-slate-600">
-                        {p.retrieval_time ? (
-                          formatDateTime(p.retrieval_time)
-                        ) : (
-                          <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
-                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                            Active
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-slate-700">
-                        {formatDuration(minutes)}
-                      </td>
-                      <td className="px-4 py-3 text-slate-700">
-                        {p.extension_count || 0}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+      {!isLoading && filtered.length === 0 && data && data.length > 0 && (
+        <EmptyState
+          icon={Car}
+          title="No sessions in this date range"
+          description="Try widening the date range."
+        />
+      )}
+
+      {!isLoading && pageItems.length > 0 && (
+        <>
+          <div className="rounded-2xl bg-white border border-slate-100 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
+                  <tr>
+                    <th className="px-4 py-3 text-left font-semibold">Code</th>
+                    <th className="px-4 py-3 text-left font-semibold">Space</th>
+                    <th className="px-4 py-3 text-left font-semibold">Parked</th>
+                    <th className="px-4 py-3 text-left font-semibold">Retrieved</th>
+                    <th className="px-4 py-3 text-left font-semibold">Duration</th>
+                    <th className="px-4 py-3 text-left font-semibold">Extensions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {pageItems.map((p) => {
+                    const start = new Date(p.parking_date).getTime();
+                    const end = p.retrieval_time
+                      ? new Date(p.retrieval_time).getTime()
+                      : Date.now();
+                    const minutes = Math.floor((end - start) / 60000);
+                    return (
+                      <tr key={p.parking_code} className="hover:bg-slate-50">
+                        <td className="px-4 py-3 font-mono font-semibold text-slate-900">
+                          {formatCode(p.confirmation_code)}
+                        </td>
+                        <td className="px-4 py-3 text-slate-700">
+                          #{p.parking_space}
+                        </td>
+                        <td className="px-4 py-3 text-slate-600">
+                          {formatDateTime(p.parking_date)}
+                        </td>
+                        <td className="px-4 py-3 text-slate-600">
+                          {p.retrieval_time ? (
+                            formatDateTime(p.retrieval_time)
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+                              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                              Active
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-slate-700">
+                          {formatDuration(minutes)}
+                        </td>
+                        <td className="px-4 py-3 text-slate-700">
+                          {p.extension_count || 0}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+
+          {pageCount > 1 && (
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-slate-500">
+                Showing {(page - 1) * PAGE_SIZE + 1}–
+                {Math.min(page * PAGE_SIZE, filtered.length)} of{' '}
+                {filtered.length}
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Prev
+                </Button>
+                <span className="inline-flex items-center px-3 text-sm font-medium text-slate-700">
+                  {page} / {pageCount}
+                </span>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
+                  disabled={page === pageCount}
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

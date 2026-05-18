@@ -398,17 +398,43 @@ export const myHistory = async (req, res, next) => {
 
 /**
  * GET /api/parking/active
- * For attendant/manager.
+ * For attendant/manager. Joins user + subscriber data for the row.
  */
 export const listActiveParkings = async (_req, res, next) => {
   try {
-    const { data, error } = await supabase
+    const { data: parkings, error } = await supabase
       .from('parking')
       .select('*')
       .is('retrieval_time', null)
       .order('parking_date', { ascending: false });
     if (error) throw error;
-    return res.json(data || []);
+
+    const ids = [...new Set((parkings || []).map((p) => p.subscriber_num))];
+    let usersById = {};
+    let subsById = {};
+    if (ids.length > 0) {
+      const [{ data: users }, { data: subs }] = await Promise.all([
+        supabase
+          .from('user')
+          .select('id, first_name, last_name, email, phone_number')
+          .in('id', ids),
+        supabase
+          .from('subscriber')
+          .select('subscriber_num, license_plate_number, status')
+          .in('subscriber_num', ids),
+      ]);
+      usersById = Object.fromEntries((users || []).map((u) => [u.id, u]));
+      subsById = Object.fromEntries(
+        (subs || []).map((s) => [s.subscriber_num, s])
+      );
+    }
+
+    const enriched = (parkings || []).map((p) => ({
+      ...p,
+      user: usersById[p.subscriber_num] || null,
+      subscriber: subsById[p.subscriber_num] || null,
+    }));
+    return res.json(enriched);
   } catch (err) {
     next(err);
   }

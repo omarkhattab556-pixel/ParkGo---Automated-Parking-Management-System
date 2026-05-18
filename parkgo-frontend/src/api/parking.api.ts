@@ -1,5 +1,5 @@
 import api from './axios';
-import type { Parking } from '@/types';
+import type { Parking, Subscriber, User } from '@/types';
 
 export interface InstallerInfo {
   id: number;
@@ -37,6 +37,11 @@ export interface ExtendResult {
   remaining_extension_minutes: number;
 }
 
+export interface ActiveParking extends Parking {
+  user: Pick<User, 'id' | 'first_name' | 'last_name' | 'email' | 'phone_number'> | null;
+  subscriber: Pick<Subscriber, 'subscriber_num' | 'license_plate_number' | 'status'> | null;
+}
+
 export const parkingApi = {
   dropOff: async (confirmation_code?: number): Promise<DropOffResult> => {
     const body = confirmation_code != null ? { confirmation_code } : {};
@@ -71,6 +76,11 @@ export const parkingApi = {
 
   myActive: async (): Promise<Parking | null> => {
     const { data } = await api.get<Parking | null>('/parking/my-active');
+    return data;
+  },
+
+  active: async (): Promise<ActiveParking[]> => {
+    const { data } = await api.get<ActiveParking[]>('/parking/active');
     return data;
   },
 };
