@@ -6,7 +6,14 @@ import dotenv from 'dotenv';
 
 import { APP } from './config/constants.js';
 import { notFound, errorHandler } from './middleware/error.middleware.js';
+
 import authRoutes from './routes/auth.routes.js';
+import subscriberRoutes from './routes/subscriber.routes.js';
+import reservationRoutes from './routes/reservation.routes.js';
+import parkingRoutes from './routes/parking.routes.js';
+import facilityRoutes from './routes/facility.routes.js';
+
+import { startFreeInstallersJob } from './jobs/freeInstallers.job.js';
 
 dotenv.config();
 
@@ -31,6 +38,10 @@ app.get('/health', (_req, res) =>
 );
 
 app.use('/api/auth', authRoutes);
+app.use('/api/subscribers', subscriberRoutes);
+app.use('/api/reservations', reservationRoutes);
+app.use('/api/parking', parkingRoutes);
+app.use('/api/facility', facilityRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
@@ -40,4 +51,8 @@ app.listen(APP.PORT, () => {
   console.log(`  env:      ${APP.NODE_ENV}`);
   console.log(`  frontend: ${APP.FRONTEND_URL}`);
   console.log(`  health:   http://localhost:${APP.PORT}/health\n`);
+
+  if (APP.NODE_ENV !== 'test') {
+    startFreeInstallersJob();
+  }
 });
