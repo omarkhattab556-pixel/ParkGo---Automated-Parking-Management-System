@@ -1,5 +1,19 @@
 import api from './axios';
-import type { Installer } from '@/types';
+import type { Installer, ParkingSpace } from '@/types';
+
+export interface SpaceWithStatus extends ParkingSpace {
+  in_use: boolean;
+  reserved: boolean;
+}
+
+export interface AddSpacePayload {
+  space_number?: number;
+  location?: string;
+}
+
+export interface AddInstallerPayload {
+  installer_name: string;
+}
 
 export interface FacilityLoad {
   total: number;
@@ -57,6 +71,37 @@ export const facilityApi = {
 
   callMaintenance: async (): Promise<MaintenanceCallResult> => {
     const { data } = await api.post<MaintenanceCallResult>('/facility/maintenance');
+    return data;
+  },
+
+  /* Manager CRUD */
+  listSpaces: async (): Promise<SpaceWithStatus[]> => {
+    const { data } = await api.get<SpaceWithStatus[]>('/facility/spaces');
+    return data;
+  },
+
+  addSpace: async (payload: AddSpacePayload): Promise<ParkingSpace> => {
+    const { data } = await api.post<ParkingSpace>('/facility/spaces', payload);
+    return data;
+  },
+
+  removeSpace: async (num: number): Promise<{ success: true; removed: number }> => {
+    const { data } = await api.delete(`/facility/spaces/${num}`);
+    return data;
+  },
+
+  listInstallers: async (): Promise<Installer[]> => {
+    const { data } = await api.get<Installer[]>('/facility/installers');
+    return data;
+  },
+
+  addInstaller: async (payload: AddInstallerPayload): Promise<Installer> => {
+    const { data } = await api.post<Installer>('/facility/installers', payload);
+    return data;
+  },
+
+  removeInstaller: async (id: number): Promise<{ success: true; removed: number }> => {
+    const { data } = await api.delete(`/facility/installers/${id}`);
     return data;
   },
 };

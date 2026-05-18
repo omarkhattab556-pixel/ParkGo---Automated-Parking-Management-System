@@ -12,8 +12,11 @@ import subscriberRoutes from './routes/subscriber.routes.js';
 import reservationRoutes from './routes/reservation.routes.js';
 import parkingRoutes from './routes/parking.routes.js';
 import facilityRoutes from './routes/facility.routes.js';
+import reportsRoutes from './routes/reports.routes.js';
 
 import { startFreeInstallersJob } from './jobs/freeInstallers.job.js';
+import { startCancelExpiredJob } from './jobs/cancelExpiredReservations.job.js';
+import { startCheckLateReturnsJob } from './jobs/checkLateReturns.job.js';
 
 dotenv.config();
 
@@ -42,6 +45,7 @@ app.use('/api/subscribers', subscriberRoutes);
 app.use('/api/reservations', reservationRoutes);
 app.use('/api/parking', parkingRoutes);
 app.use('/api/facility', facilityRoutes);
+app.use('/api/reports', reportsRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
@@ -54,5 +58,7 @@ app.listen(APP.PORT, () => {
 
   if (APP.NODE_ENV !== 'test') {
     startFreeInstallersJob();
+    startCancelExpiredJob();
+    startCheckLateReturnsJob();
   }
 });

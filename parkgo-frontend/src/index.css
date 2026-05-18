@@ -80,3 +80,17 @@
     border-radius: 3px;
   }
 }
+
+@media print {
+  body {
+    background: #fff !important;
+  }
+  aside,
+  header.flex.md\\:hidden,
+  .print\\:hidden {
+    display: none !important;
+  }
+  main {
+    padding: 0 !important;
+  }
+}

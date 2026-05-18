@@ -28,7 +28,13 @@ import FacilityMaintenancePage from '@/pages/attendant/FacilityMaintenancePage';
 import FacilityStatusPage from '@/pages/attendant/FacilityStatusPage';
 import LoadLevelPage from '@/pages/attendant/LoadLevelPage';
 
+import ManagerLayout from '@/pages/manager/ManagerLayout';
 import ManagerDashboard from '@/pages/manager/ManagerDashboard';
+import AddFacilityPage from '@/pages/manager/AddFacilityPage';
+import RemoveFacilityPage from '@/pages/manager/RemoveFacilityPage';
+import ReportsPage from '@/pages/manager/ReportsPage';
+import ManagerAllSubscribersPage from '@/pages/manager/ManagerAllSubscribersPage';
+import ManagerActiveParkingsPage from '@/pages/manager/ManagerActiveParkingsPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -107,13 +113,21 @@ function App() {
           </Route>
 
           <Route
-            path="/manager/*"
+            path="/manager"
             element={
               <ProtectedRoute allowedRoles={['manager']}>
-                <ManagerDashboard />
+                <ManagerLayout />
               </ProtectedRoute>
             }
-          />
+          >
+            <Route index element={<ManagerDashboard />} />
+            <Route path="add-facility" element={<AddFacilityPage />} />
+            <Route path="remove-facility" element={<RemoveFacilityPage />} />
+            <Route path="reports" element={<ReportsPage />} />
+            <Route path="subscribers" element={<ManagerAllSubscribersPage />} />
+            <Route path="active-parkings" element={<ManagerActiveParkingsPage />} />
+            <Route path="*" element={<Navigate to="/manager" replace />} />
+          </Route>
 
           <Route path="/" element={<RoleRedirect />} />
           <Route path="*" element={<Navigate to="/" replace />} />
