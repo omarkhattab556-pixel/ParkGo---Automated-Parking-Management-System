@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { CalendarClock, CalendarX } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { CalendarClock, CalendarX, CalendarPlus } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { LoadingSpinner } from '@/components/common/LoadingSpinner';
+import { TableSkeleton } from '@/components/common/Skeleton';
 import { EmptyState } from '@/components/common/EmptyState';
+import { Button } from '@/components/ui/Button';
 import { useMyReservations } from '@/hooks/useParking';
 import { formatCode, formatDateTime } from '@/utils/formatters';
 
@@ -51,13 +53,21 @@ export default function ReservationHistoryPage() {
         </div>
       )}
 
-      {isLoading && <LoadingSpinner />}
+      {isLoading && <TableSkeleton columns={5} rows={6} />}
 
       {!isLoading && (!data || data.length === 0) && (
         <EmptyState
           icon={CalendarX}
           title="No reservations yet"
-          description="You haven't made any reservations. Use ORDER NOW from the dashboard."
+          description="Book a parking spot 24h–7d in advance from the reserve page."
+          action={
+            <Link to="/subscriber/reserve">
+              <Button>
+                <CalendarPlus className="h-4 w-4" />
+                Order now
+              </Button>
+            </Link>
+          }
         />
       )}
 

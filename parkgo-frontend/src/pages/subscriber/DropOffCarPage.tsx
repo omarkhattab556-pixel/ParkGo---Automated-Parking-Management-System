@@ -54,7 +54,8 @@ export default function DropOffCarPage() {
       <header className="flex items-center gap-3">
         <Link
           to="/subscriber"
-          className="h-9 w-9 inline-flex items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100"
+          aria-label="Back to dashboard"
+          className="h-9 w-9 inline-flex items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
         >
           <ArrowLeft className="h-5 w-5" />
         </Link>

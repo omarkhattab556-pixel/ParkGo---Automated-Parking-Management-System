@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { History, Car, ChevronLeft, ChevronRight } from 'lucide-react';
-import { LoadingSpinner } from '@/components/common/LoadingSpinner';
+import { TableSkeleton } from '@/components/common/Skeleton';
 import { EmptyState } from '@/components/common/EmptyState';
 import { useMyParkingHistory } from '@/hooks/useParking';
 import { formatCode, formatDateTime, formatDuration } from '@/utils/formatters';
@@ -84,13 +85,21 @@ export default function ParkingHistoryPage() {
         </div>
       )}
 
-      {isLoading && <LoadingSpinner />}
+      {isLoading && <TableSkeleton columns={6} rows={6} />}
 
       {!isLoading && (!data || data.length === 0) && (
         <EmptyState
           icon={Car}
           title="No parking sessions yet"
           description="Your parking history will appear here once you park your first car."
+          action={
+            <Link to="/subscriber/drop-off">
+              <Button>
+                <Car className="h-4 w-4" />
+                Drop off your first car
+              </Button>
+            </Link>
+          }
         />
       )}
 

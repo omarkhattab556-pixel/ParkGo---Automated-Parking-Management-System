@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { Settings, Cog, Check, CircleX } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { facilityApi } from '@/api/facility.api';
-import { LoadingSpinner } from '@/components/common/LoadingSpinner';
+import { CardSkeleton, StatStripSkeleton } from '@/components/common/Skeleton';
 import { BUSINESS_RULES } from '@/utils/constants';
 
 function InstallerCard({
@@ -126,7 +126,16 @@ export default function FacilityStatusPage() {
         </div>
       </header>
 
-      {isLoading && <LoadingSpinner />}
+      {isLoading && (
+        <>
+          <StatStripSkeleton count={4} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[...Array(3)].map((_, i) => (
+              <CardSkeleton key={i} lines={2} />
+            ))}
+          </div>
+        </>
+      )}
 
       {data && (
         <>

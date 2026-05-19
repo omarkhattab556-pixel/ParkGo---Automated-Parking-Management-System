@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { XCircle, AlertTriangle, CalendarX } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { XCircle, AlertTriangle, CalendarX, CalendarPlus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import { Button } from '@/components/ui/Button';
-import { LoadingSpinner } from '@/components/common/LoadingSpinner';
+import { CardSkeleton } from '@/components/common/Skeleton';
 import { EmptyState } from '@/components/common/EmptyState';
 import { useCancelReservation, useMyReservations } from '@/hooks/useParking';
 import { formatCode, formatDateTime } from '@/utils/formatters';
@@ -37,13 +38,27 @@ export default function CancelReservationPage() {
         </div>
       </header>
 
-      {isLoading && <LoadingSpinner />}
+      {isLoading && (
+        <div className="space-y-3">
+          {[...Array(3)].map((_, i) => (
+            <CardSkeleton key={i} lines={2} />
+          ))}
+        </div>
+      )}
 
       {!isLoading && active.length === 0 && (
         <EmptyState
           icon={CalendarX}
           title="No active reservations"
           description="You don't have any reservations to cancel."
+          action={
+            <Link to="/subscriber/reserve">
+              <Button variant="secondary">
+                <CalendarPlus className="h-4 w-4" />
+                Make a reservation
+              </Button>
+            </Link>
+          }
         />
       )}
 

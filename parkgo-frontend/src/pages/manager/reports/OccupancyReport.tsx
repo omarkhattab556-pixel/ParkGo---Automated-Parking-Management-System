@@ -11,7 +11,7 @@ import {
 import { format } from 'date-fns';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 
-import { LoadingSpinner } from '@/components/common/LoadingSpinner';
+import { ChartSkeleton, StatStripSkeleton } from '@/components/common/Skeleton';
 import { reportsApi } from '@/api/reports.api';
 import { cn } from '@/lib/utils';
 
@@ -48,7 +48,15 @@ export function OccupancyReport({ month }: { month: string }) {
     queryFn: () => reportsApi.occupancy(month),
   });
 
-  if (isLoading) return <LoadingSpinner />;
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <StatStripSkeleton count={3} />
+        <ChartSkeleton height={300} />
+        <ChartSkeleton height={200} />
+      </div>
+    );
+  }
   if (!data) return null;
 
   const dailyData = data.daily.map((d) => ({

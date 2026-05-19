@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Car, Activity, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { LoadingSpinner } from '@/components/common/LoadingSpinner';
+import { TableSkeleton } from '@/components/common/Skeleton';
 import { EmptyState } from '@/components/common/EmptyState';
 import { parkingApi } from '@/api/parking.api';
 import { formatCode, formatDateTime, formatDuration } from '@/utils/formatters';
@@ -77,7 +77,7 @@ export default function ActiveParkingsPage() {
         </div>
       )}
 
-      {isLoading && <LoadingSpinner />}
+      {isLoading && <TableSkeleton columns={8} rows={6} />}
 
       {!isLoading && (!data || data.length === 0) && (
         <EmptyState

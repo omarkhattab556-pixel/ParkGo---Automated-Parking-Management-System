@@ -1,6 +1,9 @@
 @import "tailwindcss";
 
 @theme {
+  /* Animations */
+  --animate-shimmer: shimmer 1.6s ease-in-out infinite;
+
   /* Primary palette */
   --color-primary-50: #eff6ff;
   --color-primary-100: #dbeafe;
@@ -78,6 +81,22 @@
   .scrollbar-thin::-webkit-scrollbar-thumb {
     background-color: var(--color-surface-200);
     border-radius: 3px;
+  }
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
   }
 }
 

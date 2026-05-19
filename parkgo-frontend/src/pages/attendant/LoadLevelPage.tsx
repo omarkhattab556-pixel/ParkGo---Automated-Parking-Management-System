@@ -18,7 +18,7 @@ import {
 import { motion } from 'framer-motion';
 
 import { facilityApi } from '@/api/facility.api';
-import { LoadingSpinner } from '@/components/common/LoadingSpinner';
+import { ChartSkeleton } from '@/components/common/Skeleton';
 import { format } from 'date-fns';
 
 /* ----- Half-circle gauge (SVG) ----- */
@@ -140,7 +140,12 @@ export default function LoadLevelPage() {
         </div>
       </header>
 
-      {load.isLoading && <LoadingSpinner />}
+      {load.isLoading && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <ChartSkeleton height={300} />
+          <ChartSkeleton height={300} />
+        </div>
+      )}
 
       {load.data && (
         <>
@@ -229,7 +234,7 @@ export default function LoadLevelPage() {
               )}
             </div>
             {hourly.isLoading ? (
-              <LoadingSpinner />
+              <ChartSkeleton height={288} />
             ) : (
               <div className="h-72">
                 <ResponsiveContainer width="100%" height="100%">

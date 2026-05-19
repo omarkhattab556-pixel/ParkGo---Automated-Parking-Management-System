@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { User as UserIcon, Mail, Phone, Hash, Calendar, ShieldCheck } from 'lucide-react';
 import { subscriberApi } from '@/api/subscriber.api';
-import { LoadingSpinner } from '@/components/common/LoadingSpinner';
+import { CardSkeleton, StatStripSkeleton } from '@/components/common/Skeleton';
 import { formatDate } from '@/utils/formatters';
 import { cn } from '@/lib/utils';
 
@@ -43,7 +43,12 @@ export default function ProfilePage() {
   });
 
   if (isLoading || !data) {
-    return <LoadingSpinner />;
+    return (
+      <div className="max-w-3xl mx-auto space-y-6">
+        <StatStripSkeleton count={4} />
+        <CardSkeleton lines={6} />
+      </div>
+    );
   }
 
   const { user, subscriber, stats } = data;

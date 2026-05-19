@@ -11,7 +11,7 @@ import {
 import toast from 'react-hot-toast';
 
 import { Button } from '@/components/ui/Button';
-import { LoadingSpinner } from '@/components/common/LoadingSpinner';
+import { Skeleton } from '@/components/common/Skeleton';
 import { facilityApi } from '@/api/facility.api';
 import { cn } from '@/lib/utils';
 
@@ -86,7 +86,13 @@ export default function RemoveFacilityPage() {
           <MapPin className="h-4 w-4 text-slate-500" />
           Parking spaces ({spaces.data?.length ?? 0})
         </h2>
-        {spaces.isLoading && <LoadingSpinner />}
+        {spaces.isLoading && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
+            {[...Array(16)].map((_, i) => (
+              <Skeleton key={i} className="h-20 rounded-xl" />
+            ))}
+          </div>
+        )}
         {spaces.data && spaces.data.length === 0 && (
           <p className="text-sm text-slate-500 italic">No spaces configured.</p>
         )}
@@ -139,7 +145,13 @@ export default function RemoveFacilityPage() {
           <Cog className="h-4 w-4 text-slate-500" />
           Installers ({installers.data?.length ?? 0})
         </h2>
-        {installers.isLoading && <LoadingSpinner />}
+        {installers.isLoading && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {[...Array(3)].map((_, i) => (
+              <Skeleton key={i} className="h-20 rounded-2xl" />
+            ))}
+          </div>
+        )}
         {installers.data && installers.data.length === 0 && (
           <p className="text-sm text-slate-500 italic">No installers configured.</p>
         )}
@@ -174,6 +186,7 @@ export default function RemoveFacilityPage() {
                     variant="danger"
                     size="sm"
                     disabled={locked}
+                    aria-label={`Remove ${i.installer_name}`}
                     onClick={() =>
                       setConfirm({
                         kind: 'installer',

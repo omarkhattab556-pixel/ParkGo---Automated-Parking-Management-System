@@ -13,7 +13,7 @@ import {
   Legend,
 } from 'recharts';
 
-import { LoadingSpinner } from '@/components/common/LoadingSpinner';
+import { ChartSkeleton, StatStripSkeleton } from '@/components/common/Skeleton';
 import { reportsApi } from '@/api/reports.api';
 import { formatDuration } from '@/utils/formatters';
 
@@ -47,7 +47,17 @@ export function BehaviorReport({ month }: { month: string }) {
     queryFn: () => reportsApi.behavior(month),
   });
 
-  if (isLoading) return <LoadingSpinner />;
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <StatStripSkeleton count={3} />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <ChartSkeleton height={300} />
+          <ChartSkeleton height={300} />
+        </div>
+      </div>
+    );
+  }
   if (!data) return null;
 
   const pieData = [

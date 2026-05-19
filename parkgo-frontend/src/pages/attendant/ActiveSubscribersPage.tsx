@@ -19,6 +19,7 @@ import toast from 'react-hot-toast';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
+import { TableSkeleton } from '@/components/common/Skeleton';
 import { EmptyState } from '@/components/common/EmptyState';
 import { cn } from '@/lib/utils';
 import { subscriberApi, type SubscriberListItem } from '@/api/subscriber.api';
@@ -341,7 +342,7 @@ export default function ActiveSubscribersPage() {
         </div>
       </div>
 
-      {isLoading && <LoadingSpinner />}
+      {isLoading && <TableSkeleton columns={9} rows={8} />}
 
       {!isLoading && filtered.length === 0 && (
         <EmptyState
