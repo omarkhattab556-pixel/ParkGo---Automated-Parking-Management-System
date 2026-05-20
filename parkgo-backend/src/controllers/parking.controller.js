@@ -306,6 +306,9 @@ export const pickUp = async (req, res, next) => {
  * Body: { extra_minutes?: number }   default 60
  *
  * Caps total extension at MAX_EXTENSION_MINUTES (240).
+ * Additionally refuses extensions that would push the parking past the
+ * start of an active reservation on the same space — reservations have
+ * priority over walk-in / extended sessions.
  */
 export const extendParking = async (req, res, next) => {
   try {
@@ -335,14 +338,60 @@ export const extendParking = async (req, res, next) => {
     }
 
     const currentMax = parking.max_time_minutes || MAX_TIME_MINUTES;
-    const currentExtension = currentMax - MAX_TIME_MINUTES; // minutes added so far
+    const currentExtension = currentMax - MAX_TIME_MINUTES;
     const remainingExtension = MAX_EXTENSION_MINUTES - currentExtension;
     if (remainingExtension <= 0) {
       return res.status(409).json({
         error: `Maximum extension (${MAX_EXTENSION_MINUTES} minutes) already used`,
       });
     }
-    const minutesToAdd = Math.min(extraMinutes, remainingExtension);
+
+    // How long would the session run if we granted the full request?
+    const parkStart = new Date(parking.parking_date);
+    const requestedMinutes = Math.min(extraMinutes, remainingExtension);
+    const candidateEnd = new Date(
+      parkStart.getTime() + (currentMax + requestedMinutes) * 60_000
+    );
+
+    // Find the next active reservation on this same space that starts AFTER
+    // the current session start. That reservation has priority.
+    const { data: blocking, error: blockErr } = await supabase
+      .from('reservation')
+      .select('reservation_id, reservation_start, confirmation_code')
+      .eq('parking_space', parking.parking_space)
+      .eq('status', 'active')
+      .neq('confirmation_code', parking.confirmation_code)
+      .gt('reservation_start', parkStart.toISOString())
+      .order('reservation_start', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    if (blockErr) throw blockErr;
+
+    let minutesToAdd = requestedMinutes;
+    let cappedByReservation = false;
+    if (blocking) {
+      const resStart = new Date(blocking.reservation_start);
+      // We can extend up to (but not into) the reservation's start.
+      const maxAllowedEnd = resStart.getTime();
+      const currentEnd = parkStart.getTime() + currentMax * 60_000;
+      const allowedAdd = Math.max(
+        0,
+        Math.floor((maxAllowedEnd - currentEnd) / 60_000)
+      );
+      if (candidateEnd.getTime() > maxAllowedEnd) {
+        if (allowedAdd <= 0) {
+          return res.status(409).json({
+            error:
+              'Cannot extend — another reservation starts on this space immediately after your session.',
+            code: 'BLOCKED_BY_RESERVATION',
+            reservation_start: blocking.reservation_start,
+          });
+        }
+        minutesToAdd = Math.min(allowedAdd, remainingExtension);
+        cappedByReservation = true;
+      }
+    }
+
     const newMax = currentMax + minutesToAdd;
 
     const { data: updated, error: upErr } = await supabase
@@ -361,6 +410,8 @@ export const extendParking = async (req, res, next) => {
       parking: updated,
       minutes_added: minutesToAdd,
       remaining_extension_minutes: remainingExtension - minutesToAdd,
+      capped_by_reservation: cappedByReservation,
+      next_reservation_start: blocking?.reservation_start || null,
     });
   } catch (err) {
     next(err);

@@ -81,7 +81,14 @@ export const useExtendParking = () => {
     mutationFn: ({ parkingCode, minutes }: { parkingCode: number; minutes: number }) =>
       parkingApi.extend(parkingCode, minutes),
     onSuccess: (data) => {
-      toast.success(`Extended by ${data.minutes_added} minutes`);
+      if (data.capped_by_reservation) {
+        toast.success(
+          `Shortened to ${data.minutes_added} min — another reservation starts soon on this space.`,
+          { duration: 5000 }
+        );
+      } else {
+        toast.success(`Extended by ${data.minutes_added} minutes`);
+      }
       qc.invalidateQueries({ queryKey: ['parking'] });
     },
     onError: (err: { message?: string; error?: string }) => {

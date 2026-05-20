@@ -10,6 +10,7 @@ import {
   Clock,
   AlertTriangle,
   Timer,
+  X,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -27,14 +28,18 @@ import {
 import type { PickUpResult } from '@/api/parking.api';
 import { BUSINESS_RULES } from '@/utils/constants';
 import { formatDateTime, formatDuration } from '@/utils/formatters';
+import { cn } from '@/lib/utils';
 
 type Phase = 'form' | 'animating' | 'done';
+
+const EXTEND_PRESETS_MIN = [30, 60, 90, 120, 180, 240];
 
 export default function PickUpCarPage() {
   const navigate = useNavigate();
   const [codeInput, setCodeInput] = useState('');
   const [phase, setPhase] = useState<Phase>('form');
   const [result, setResult] = useState<PickUpResult | null>(null);
+  const [extendOpen, setExtendOpen] = useState(false);
 
   const activeParking = useMyActiveParking();
   const pickUp = usePickUp();
@@ -52,13 +57,15 @@ export default function PickUpCarPage() {
   const elapsedMinutes = active
     ? Math.floor((Date.now() - new Date(active.parking_date).getTime()) / 60000)
     : 0;
-  const maxMinutes = active?.max_time_minutes ?? BUSINESS_RULES.MAX_PARKING_HOURS * 60;
+  const maxMinutes =
+    active?.max_time_minutes ?? BUSINESS_RULES.MAX_PARKING_HOURS * 60;
   const isOvertime = elapsedMinutes > maxMinutes;
   const overtimeMinutes = Math.max(0, elapsedMinutes - maxMinutes);
   const remainingMinutes = Math.max(0, maxMinutes - elapsedMinutes);
 
   const currentExtension = maxMinutes - BUSINESS_RULES.MAX_PARKING_HOURS * 60;
   const extensionLeft = BUSINESS_RULES.MAX_EXTENSION_HOURS * 60 - currentExtension;
+  const canExtend = !!active && extensionLeft > 0;
 
   const submit = () => {
     const code = Number(codeInput);
@@ -73,7 +80,6 @@ export default function PickUpCarPage() {
       },
     });
   };
-
 
   const stateColor = isOvertime
     ? { bg: 'bg-danger-50 border-danger-200', text: 'text-danger-700', icon: 'text-danger-600' }
@@ -122,27 +128,28 @@ export default function PickUpCarPage() {
                   ? `${formatDuration(overtimeMinutes)} over limit`
                   : `${formatDuration(remainingMinutes)} remaining`}
               </p>
-              {isOvertime && extensionLeft > 0 && (
-                <div className="mt-3 flex flex-wrap items-center gap-2">
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                {canExtend && (
                   <Button
                     size="sm"
                     variant="primary"
-                    loading={extend.isPending}
-                    onClick={() =>
-                      extend.mutate({
-                        parkingCode: active.parking_code,
-                        minutes: Math.min(60, extensionLeft),
-                      })
-                    }
+                    onClick={() => setExtendOpen(true)}
                   >
                     <Timer className="h-4 w-4" />
-                    Extend by {Math.min(60, extensionLeft)} min
+                    Extend parking
                   </Button>
-                  <span className="text-xs text-danger-700">
+                )}
+                {canExtend && (
+                  <span className={`text-xs ${stateColor.text}`}>
                     Extension left: {formatDuration(extensionLeft)}
                   </span>
-                </div>
-              )}
+                )}
+                {!canExtend && active && (
+                  <span className="text-xs text-ink-500">
+                    Max extension already used (4 h cap)
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </motion.div>
@@ -163,10 +170,7 @@ export default function PickUpCarPage() {
       )}
 
       {phase === 'form' && (
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
           <Card variant="default" padding="xl" className="space-y-5">
             <div className="flex items-center gap-3 mb-1">
               <div className="h-12 w-12 rounded-2xl bg-success-50 border border-success-100 flex items-center justify-center text-success-600">
@@ -294,6 +298,146 @@ export default function PickUpCarPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <ExtendModal
+        open={extendOpen}
+        onClose={() => setExtendOpen(false)}
+        extensionLeft={extensionLeft}
+        isPending={extend.isPending}
+        onSubmit={(minutes) => {
+          if (!active) return;
+          extend.mutate(
+            { parkingCode: active.parking_code, minutes },
+            {
+              onSuccess: () => setExtendOpen(false),
+            }
+          );
+        }}
+      />
     </div>
+  );
+}
+
+/* ============================================================
+   Extend modal — user picks duration (capped by extensionLeft)
+   ============================================================ */
+function ExtendModal({
+  open,
+  onClose,
+  extensionLeft,
+  isPending,
+  onSubmit,
+}: {
+  open: boolean;
+  onClose: () => void;
+  extensionLeft: number;
+  isPending: boolean;
+  onSubmit: (minutes: number) => void;
+}) {
+  const usablePresets = EXTEND_PRESETS_MIN.filter((m) => m <= extensionLeft);
+  const initial =
+    usablePresets[Math.min(1, usablePresets.length - 1)] || extensionLeft || 30;
+  const [selected, setSelected] = useState<number>(initial);
+
+  useEffect(() => {
+    if (open) {
+      setSelected(initial);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 bg-ink-900/60 backdrop-blur-md flex items-center justify-center p-4"
+          onClick={onClose}
+        >
+          <motion.div
+            initial={{ scale: 0.92, y: 16 }}
+            animate={{ scale: 1, y: 0 }}
+            exit={{ scale: 0.92, y: 16 }}
+            transition={{ type: 'spring', stiffness: 220, damping: 22 }}
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md rounded-3xl bg-surface-0 p-6 md:p-7 shadow-popover"
+          >
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center text-white shadow-[0_8px_24px_-8px_rgba(93,82,247,0.55)]">
+                  <Timer className="h-5 w-5" strokeWidth={2.4} />
+                </div>
+                <div>
+                  <h2 className="font-display text-xl font-bold text-ink-900">
+                    Extend parking
+                  </h2>
+                  <p className="text-xs text-ink-500">
+                    Up to {formatDuration(extensionLeft)} available
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={onClose}
+                aria-label="Close"
+                className="h-9 w-9 rounded-xl text-ink-500 hover:bg-surface-100 flex items-center justify-center"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <p className="text-sm text-ink-600 mb-3">
+              Pick how much extra time you need. If another reservation is
+              already booked on this space, the maximum is reduced
+              automatically.
+            </p>
+
+            <div className="grid grid-cols-3 gap-2 mb-5">
+              {usablePresets.map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setSelected(m)}
+                  className={cn(
+                    'h-14 rounded-2xl border-2 font-display font-bold text-base transition-all',
+                    selected === m
+                      ? 'border-brand-500 bg-brand-50 text-brand-700 shadow-[0_4px_14px_-4px_rgba(93,82,247,0.35)]'
+                      : 'border-surface-200 bg-surface-0 text-ink-700 hover:border-ink-300'
+                  )}
+                >
+                  {formatDuration(m)}
+                </button>
+              ))}
+            </div>
+
+            <div className="rounded-2xl bg-info-50 border border-info-100 p-3 text-xs text-info-600 mb-5 flex items-start gap-2">
+              <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+              <p>
+                Reservations have priority. If your extension would overlap
+                with another driver's booked time, the system will refuse the
+                request or shorten it automatically.
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <Button variant="secondary" fullWidth onClick={onClose}>
+                Cancel
+              </Button>
+              <Button
+                fullWidth
+                size="md"
+                loading={isPending}
+                disabled={!selected || selected > extensionLeft}
+                onClick={() => onSubmit(selected)}
+              >
+                <Timer className="h-4 w-4" />
+                Extend by {formatDuration(selected)}
+              </Button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

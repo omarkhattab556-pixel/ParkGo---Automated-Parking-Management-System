@@ -191,6 +191,115 @@ export const reactivateSubscriber = async (req, res, next) => {
 };
 
 /**
+ * PATCH /api/subscribers/:id/deactivate
+ * Manager cancels a subscription. Refuses if the subscriber has an active
+ * parking session or any non-cancelled reservations — those must clear first.
+ */
+export const deactivateSubscriber = async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id)) return res.status(400).json({ error: 'Invalid id' });
+
+    const [{ data: activeParking }, { data: activeReservations }] =
+      await Promise.all([
+        supabase
+          .from('parking')
+          .select('parking_code')
+          .eq('subscriber_num', id)
+          .is('retrieval_time', null)
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from('reservation')
+          .select('reservation_id')
+          .eq('subscriber_num', id)
+          .eq('status', 'active'),
+      ]);
+
+    if (activeParking) {
+      return res.status(409).json({
+        error: 'Cannot cancel — subscriber has an active parking session.',
+        code: 'ACTIVE_PARKING',
+      });
+    }
+
+    // Cancel any active reservations first so spaces are freed up.
+    if (activeReservations && activeReservations.length > 0) {
+      const ids = activeReservations.map((r) => r.reservation_id);
+      const { error: cancelErr } = await supabase
+        .from('reservation')
+        .update({ status: 'cancelled' })
+        .in('reservation_id', ids);
+      if (cancelErr) throw cancelErr;
+    }
+
+    const { data: updated, error } = await supabase
+      .from('subscriber')
+      .update({ status: 'inactive' })
+      .eq('subscriber_num', id)
+      .select('*')
+      .maybeSingle();
+    if (error) throw error;
+    if (!updated) return res.status(404).json({ error: 'Subscriber not found' });
+
+    return res.json({
+      success: true,
+      subscriber: updated,
+      cancelled_reservations: activeReservations?.length || 0,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * POST /api/subscribers/attendant
+ * Manager creates a new attendant account. Same shape as a subscriber but
+ * user_type='attendant' and NO subscriber row is created.
+ */
+export const registerAttendant = async (req, res, next) => {
+  try {
+    const { first_name, last_name, email, phone_number, password } = req.body;
+
+    const normalizedEmail = email.toLowerCase();
+    const { data: existing } = await supabase
+      .from('user')
+      .select('id')
+      .eq('email', normalizedEmail)
+      .maybeSingle();
+    if (existing) {
+      return res.status(409).json({ error: 'Email already registered' });
+    }
+
+    const hashed = await bcrypt.hash(password, 10);
+    const { data: newUser, error: insertErr } = await supabase
+      .from('user')
+      .insert({
+        first_name,
+        last_name,
+        email: normalizedEmail,
+        password: hashed,
+        phone_number: phone_number || null,
+        user_type: 'attendant',
+      })
+      .select('*')
+      .single();
+    if (insertErr) throw insertErr;
+
+    sendWelcomeEmail(newUser, password).catch((e) =>
+      console.error('[email] welcome (attendant):', e)
+    );
+
+    return res.status(201).json({
+      success: true,
+      user: stripPassword(newUser),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
  * GET /api/subscribers/me/profile  (subscriber)
  */
 export const myProfile = async (req, res, next) => {

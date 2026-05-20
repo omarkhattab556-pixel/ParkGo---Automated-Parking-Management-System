@@ -47,6 +47,9 @@ const ManagerActiveParkingsPage = lazy(() => import('@/pages/manager/ManagerActi
 const ManagerMaintenancePage = lazy(
   () => import('@/pages/manager/ManagerMaintenancePage')
 );
+const AddAttendantPage = lazy(
+  () => import('@/pages/manager/AddAttendantPage')
+);
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -153,6 +156,7 @@ function App() {
                   element={<ManagerActiveParkingsPage />}
                 />
                 <Route path="maintenance" element={<ManagerMaintenancePage />} />
+                <Route path="add-attendant" element={<AddAttendantPage />} />
                 <Route path="*" element={<Navigate to="/manager" replace />} />
               </Route>
 

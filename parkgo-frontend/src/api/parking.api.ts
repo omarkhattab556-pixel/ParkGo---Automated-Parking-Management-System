@@ -35,6 +35,10 @@ export interface ExtendResult {
   parking: Parking;
   minutes_added: number;
   remaining_extension_minutes: number;
+  /** True when the requested duration was shortened because a reservation
+   *  on the same space starts before the requested end time. */
+  capped_by_reservation?: boolean;
+  next_reservation_start?: string | null;
 }
 
 export interface ActiveParking extends Parking {

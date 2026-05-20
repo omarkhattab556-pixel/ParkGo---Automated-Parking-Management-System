@@ -71,25 +71,26 @@ export default function SubscriberDashboard() {
   const activeReservationsCount =
     reservations.data?.filter((r) => r.status === 'active').length ?? 0;
 
+  // Privacy: the subscriber should NOT see where other people are parked.
+  // We pass `view="subscriber"` to ParkingLot3D which strips occupancy data
+  // for spots that aren't the user's own. We still build the full spots list
+  // here so the lot dimensions / layout stay accurate.
   const lotSpots = useMemo<ParkingSpot3D[]>(() => {
     const fromApi = spaces.data ?? [];
+    const total =
+      fromApi.length > 0 ? fromApi.length : load.data?.total ?? 40;
     if (fromApi.length === 0) {
-      // Fallback demo data so the 3D view always renders something nice
-      return Array.from({ length: 40 }, (_, i) => {
-        const r = (i * 9301 + 49297) % 233280;
-        const v = (r / 233280) * 10;
-        return {
-          space_number: i + 1,
-          is_occupied: v < (load.data ? load.data.occupancy_percent / 10 : 5),
-          is_reserved: v >= 8 && v < 8.8,
-          is_mine: activeParking.data?.parking_space === i + 1,
-        };
-      });
+      return Array.from({ length: total }, (_, i) => ({
+        space_number: i + 1,
+        is_occupied: false,
+        is_reserved: false,
+        is_mine: activeParking.data?.parking_space === i + 1,
+      }));
     }
     return fromApi.map((s) => ({
       space_number: s.space_number,
-      is_occupied: s.in_use,
-      is_reserved: s.reserved,
+      is_occupied: false,
+      is_reserved: false,
       is_mine: activeParking.data?.parking_space === s.space_number,
     }));
   }, [spaces.data, activeParking.data, load.data]);
@@ -196,7 +197,7 @@ export default function SubscriberDashboard() {
               </div>
             </div>
             <div className="flex-1 rounded-2xl overflow-hidden bg-gradient-to-br from-ink-800 to-ink-900 border border-white/5">
-              <ParkingLot3D spots={lotSpots} cols={8} />
+              <ParkingLot3D spots={lotSpots} cols={8} view="subscriber" />
             </div>
           </div>
         </BentoCard>

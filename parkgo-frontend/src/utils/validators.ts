@@ -22,6 +22,19 @@ export type SubscriberRegistrationInput = z.infer<
   typeof subscriberRegistrationSchema
 >;
 
+export const attendantRegistrationSchema = z.object({
+  first_name: z.string().min(2, 'At least 2 characters').max(50),
+  last_name: z.string().min(2, 'At least 2 characters').max(50),
+  email: z.string().email('Invalid email'),
+  phone_number: z
+    .string()
+    .regex(/^0\d{8,9}$/, 'Israeli phone format (e.g., 0501234567)'),
+  password: z.string().min(8, 'At least 8 characters'),
+});
+export type AttendantRegistrationInput = z.infer<
+  typeof attendantRegistrationSchema
+>;
+
 export const reservationSchema = z.object({
   reservation_start: z
     .string()

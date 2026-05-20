@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -17,6 +18,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useFacilityLoad } from '@/hooks/useParking';
 import { subscriberApi } from '@/api/subscriber.api';
 import { parkingApi } from '@/api/parking.api';
+import { facilityApi } from '@/api/facility.api';
 
 import { PageHeader, SectionHeader } from '@/components/ui/PageHeader';
 import { BentoGrid, BentoCard } from '@/components/ui/Bento';
@@ -24,6 +26,7 @@ import { StatTile } from '@/components/ui/StatTile';
 import { Badge } from '@/components/ui/Badge';
 import { GlowOrbs } from '@/components/ui/GlowOrbs';
 import { RadialGauge } from '@/components/charts/RadialGauge';
+import { ParkingLot3D, type ParkingSpot3D } from '@/components/3d/ParkingLot3D';
 
 interface Action {
   to: string;
@@ -93,6 +96,25 @@ export default function AttendantDashboard() {
     queryFn: () => parkingApi.active(),
     refetchInterval: 10_000,
   });
+
+  const spaces = useQuery({
+    queryKey: ['facility', 'spaces'],
+    queryFn: () => facilityApi.listSpaces(),
+    refetchInterval: 15_000,
+  });
+
+  // Attendant view: show occupied vs free in real time, but do NOT mark
+  // reservation spots — reservations are shown in the table view, not the map.
+  const lotSpots = useMemo<ParkingSpot3D[]>(() => {
+    const fromApi = spaces.data ?? [];
+    if (fromApi.length === 0) return [];
+    return fromApi.map((s) => ({
+      space_number: s.space_number,
+      is_occupied: s.in_use,
+      is_reserved: false,
+      is_mine: false,
+    }));
+  }, [spaces.data]);
 
   const totalSubscribers = subscribers.data?.length ?? 0;
   const activeSubscribers =
@@ -167,6 +189,50 @@ export default function AttendantDashboard() {
             <DarkPill label="Free" value={load.data?.free ?? 0} tone="text-success-300" />
             <DarkPill label="Occupied" value={load.data?.occupied ?? 0} tone="text-danger-300" />
             <DarkPill label="Reserved" value={load.data?.reserved ?? 0} tone="text-warning-400" />
+          </div>
+        </BentoCard>
+
+        {/* 3D facility map — hero */}
+        <BentoCard
+          span="col-span-2 md:col-span-3 lg:col-span-8"
+          tone="ink"
+          padding="none"
+          rowSpan="row-span-2"
+          delay={0.03}
+          className="min-h-[420px]"
+        >
+          <div className="relative h-full p-5 md:p-6 flex flex-col">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <Badge tone="ink" size="md" className="bg-white/10 text-white border-white/15 mb-2">
+                  Live
+                </Badge>
+                <h3 className="font-display text-lg font-semibold tracking-tight text-white">
+                  Facility map
+                </h3>
+                <p className="text-xs text-white/60 mt-0.5">
+                  Drag to rotate · scroll to zoom · reservations not shown
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-[11px] uppercase tracking-wider text-white/60 font-semibold">
+                  Parked now
+                </p>
+                <p className="font-display text-2xl font-bold text-white tabular leading-none mt-1">
+                  {load.isLoading ? '—' : load.data?.occupied ?? 0}
+                  <span className="text-white/50 text-base"> / {load.data?.total ?? 0}</span>
+                </p>
+              </div>
+            </div>
+            <div className="flex-1 rounded-2xl overflow-hidden bg-gradient-to-br from-ink-800 to-ink-900 border border-white/5">
+              {lotSpots.length > 0 ? (
+                <ParkingLot3D spots={lotSpots} cols={8} view="attendant" />
+              ) : (
+                <div className="h-full flex items-center justify-center text-white/50 text-sm">
+                  Loading facility…
+                </div>
+              )}
+            </div>
           </div>
         </BentoCard>
 

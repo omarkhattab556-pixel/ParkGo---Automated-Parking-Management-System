@@ -101,45 +101,55 @@ export const getAvailabilityAtWindow = async (startIso) => {
 };
 
 /**
- * Pick a random free parking space for the window [start, end).
+ * Pick the NEAREST free parking space for the reservation window [start, end).
+ * "Nearest" = lowest space_number (spaces are numbered from the entrance
+ * outward, so the lowest number is closest to the gate).
+ *
+ * The space is only considered taken when another reservation/parking
+ * actually overlaps `[start, end)` — outside that window it's free for others.
+ *
  * Returns the space row or throws if none available.
  */
 export const pickFreeSpaceForWindow = async (startIso) => {
   const { start, end } = computeReservationWindow(startIso);
 
-  const { data: allSpaces, error: spErr } = await supabase
-    .from('parking_space')
-    .select('space_number, location');
-  if (spErr) throw spErr;
-  if (!allSpaces || allSpaces.length === 0) {
+  const [spacesRes, reservationsRes, parkingsRes] = await Promise.all([
+    supabase.from('parking_space').select('space_number, location'),
+    supabase
+      .from('reservation')
+      .select('parking_space')
+      .eq('status', 'active')
+      .lt('reservation_start', end.toISOString())
+      .gt('reservation_end', start.toISOString()),
+    supabase
+      .from('parking')
+      .select('parking_space, parking_date, max_time_minutes')
+      .is('retrieval_time', null),
+  ]);
+
+  if (spacesRes.error) throw spacesRes.error;
+  if (reservationsRes.error) throw reservationsRes.error;
+  if (parkingsRes.error) throw parkingsRes.error;
+
+  const allSpaces = spacesRes.data || [];
+  if (allSpaces.length === 0) {
     const err = new Error('No parking spaces configured');
     err.status = 500;
     throw err;
   }
 
-  const { data: overlappingRes, error: resErr } = await supabase
-    .from('reservation')
-    .select('parking_space')
-    .eq('status', 'active')
-    .lt('reservation_start', end.toISOString())
-    .gt('reservation_end', start.toISOString());
-  if (resErr) throw resErr;
-
-  const { data: activeParkings, error: parkErr } = await supabase
-    .from('parking')
-    .select('parking_space, parking_date, max_time_minutes')
-    .is('retrieval_time', null);
-  if (parkErr) throw parkErr;
-
   const taken = new Set();
-  (overlappingRes || []).forEach((r) => taken.add(r.parking_space));
-  (activeParkings || []).forEach((p) => {
+  (reservationsRes.data || []).forEach((r) => taken.add(r.parking_space));
+  (parkingsRes.data || []).forEach((p) => {
     const pStart = new Date(p.parking_date);
     const pEnd = new Date(pStart.getTime() + (p.max_time_minutes || 240) * 60_000);
     if (pStart < end && pEnd > start) taken.add(p.parking_space);
   });
 
-  const free = allSpaces.filter((s) => !taken.has(s.space_number));
+  const free = allSpaces
+    .filter((s) => !taken.has(s.space_number))
+    .sort((a, b) => a.space_number - b.space_number);
+
   if (free.length === 0) {
     const err = new Error('No free spaces for the requested window');
     err.status = 409;
@@ -147,7 +157,7 @@ export const pickFreeSpaceForWindow = async (startIso) => {
     throw err;
   }
 
-  return free[Math.floor(Math.random() * free.length)];
+  return free[0];
 };
 
 /**
@@ -188,7 +198,10 @@ export const pickFreeSpaceNow = async () => {
   (reservationsRes.data || []).forEach((r) => taken.add(r.parking_space));
   (parkingsRes.data || []).forEach((p) => taken.add(p.parking_space));
 
-  const free = allSpaces.filter((s) => !taken.has(s.space_number));
+  const free = allSpaces
+    .filter((s) => !taken.has(s.space_number))
+    .sort((a, b) => a.space_number - b.space_number);
+
   if (free.length === 0) {
     const err = new Error('No free parking spaces available');
     err.status = 409;
@@ -196,5 +209,6 @@ export const pickFreeSpaceNow = async () => {
     throw err;
   }
 
-  return free[Math.floor(Math.random() * free.length)];
+  // Nearest = lowest number (closest to the entrance).
+  return free[0];
 };

@@ -8,6 +8,8 @@ import {
   listSubscribers,
   getSubscriberDetail,
   reactivateSubscriber,
+  deactivateSubscriber,
+  registerAttendant,
 } from '../controllers/subscriber.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import { requireRole } from '../middleware/role.middleware.js';
@@ -80,6 +82,33 @@ router.patch(
   authenticate,
   requireRole('attendant'),
   reactivateSubscriber
+);
+
+router.patch(
+  '/:id/deactivate',
+  authenticate,
+  requireRole('manager'),
+  deactivateSubscriber
+);
+
+const attendantRegisterSchema = z.object({
+  first_name: z.string().min(2).max(50),
+  last_name: z.string().min(2).max(50),
+  email: z.string().email(),
+  phone_number: z
+    .string()
+    .regex(/^0\d{8,9}$/, 'Israeli phone format (e.g., 0501234567)')
+    .optional()
+    .or(z.literal('')),
+  password: z.string().min(8, 'At least 8 characters'),
+});
+
+router.post(
+  '/attendant',
+  authenticate,
+  requireRole('manager'),
+  validate(attendantRegisterSchema),
+  registerAttendant
 );
 
 router.patch('/:id', authenticate, validate(updateSchema), updateOwnDetails);

@@ -29,6 +29,14 @@ export interface RegisterSubscriberPayload {
   password: string;
 }
 
+export interface RegisterAttendantPayload {
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone_number?: string;
+  password: string;
+}
+
 export interface SubscriberListItem extends User {
   subscriber: Subscriber | null;
 }
@@ -73,6 +81,24 @@ export const subscriberApi = {
 
   reactivate: async (id: number): Promise<{ success: true; subscriber: Subscriber }> => {
     const { data } = await api.patch(`/subscribers/${id}/reactivate`);
+    return data;
+  },
+
+  deactivate: async (
+    id: number
+  ): Promise<{
+    success: true;
+    subscriber: Subscriber;
+    cancelled_reservations: number;
+  }> => {
+    const { data } = await api.patch(`/subscribers/${id}/deactivate`);
+    return data;
+  },
+
+  registerAttendant: async (
+    payload: RegisterAttendantPayload
+  ): Promise<{ success: true; user: User }> => {
+    const { data } = await api.post('/subscribers/attendant', payload);
     return data;
   },
 };

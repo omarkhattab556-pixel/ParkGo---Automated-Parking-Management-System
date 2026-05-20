@@ -45,7 +45,12 @@ const addInstallerSchema = z.object({
   installer_name: z.string().min(2).max(50),
 });
 
-router.get('/spaces', authenticate, requireRole('manager'), listSpaces);
+router.get(
+  '/spaces',
+  authenticate,
+  requireRole('attendant', 'manager', 'subscriber'),
+  listSpaces
+);
 router.post(
   '/spaces',
   authenticate,

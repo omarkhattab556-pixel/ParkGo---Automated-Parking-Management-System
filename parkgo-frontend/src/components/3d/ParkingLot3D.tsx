@@ -15,6 +15,18 @@ export interface ParkingSpot3D {
   is_mine?: boolean;
 }
 
+/**
+ * View mode determines what data the spot reveals:
+ *  - 'full'       — show occupied, reserved, mine. Default (manager view).
+ *  - 'subscriber' — privacy: hide other subscribers' spots; only render
+ *                   the user's own car (is_mine). All other spots render
+ *                   as plain empty pads regardless of actual occupancy.
+ *  - 'attendant'  — live state without reservation positions: occupied
+ *                   shows as a car, reservations are NOT highlighted
+ *                   (table view handles that). No "mine" marker.
+ */
+export type ParkingLotView = 'full' | 'subscriber' | 'attendant';
+
 interface ParkingLot3DProps {
   spots: ParkingSpot3D[];
   /** Grid columns. The component lays out spaces in rows of `cols`. */
@@ -24,6 +36,7 @@ interface ParkingLot3DProps {
   autoRotate?: boolean;
   /** Hide camera controls and labels for a clean hero look */
   showcase?: boolean;
+  view?: ParkingLotView;
 }
 
 export function ParkingLot3D({
@@ -32,12 +45,37 @@ export function ParkingLot3D({
   className,
   autoRotate = true,
   showcase = false,
+  view = 'full',
 }: ParkingLot3DProps) {
+  // Apply privacy filtering based on the view mode.
+  const filtered = spots.map((s) => {
+    if (view === 'subscriber') {
+      // Show ONLY my own spot as a car; everything else is a blank pad.
+      if (s.is_mine) return s;
+      return {
+        space_number: s.space_number,
+        is_occupied: false,
+        is_reserved: false,
+        is_mine: false,
+      };
+    }
+    if (view === 'attendant') {
+      // Show occupied state (cars) but NO reservation markers and no "mine".
+      return {
+        space_number: s.space_number,
+        is_occupied: s.is_occupied,
+        is_reserved: false,
+        is_mine: false,
+      };
+    }
+    return s;
+  });
+
   return (
     <div className={cn('relative w-full h-full min-h-[280px]', className)}>
       <Suspense fallback={<LotFallback />}>
         <LotCanvas
-          spots={spots}
+          spots={filtered}
           cols={cols}
           autoRotate={autoRotate}
           showcase={showcase}
@@ -47,9 +85,18 @@ export function ParkingLot3D({
       {!showcase && (
         <div className="absolute bottom-3 left-3 right-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[11px] font-medium text-ink-600 bg-white/85 backdrop-blur-md rounded-full px-3 py-1.5 border border-surface-200 shadow-soft pointer-events-none">
           <LegendDot color="#10b981" label="Free" />
-          <LegendDot color="#f43f5e" label="Occupied" />
-          <LegendDot color="#f59e0b" label="Reserved" />
-          <LegendDot color="#5d52f7" label="You" glow />
+          {view !== 'subscriber' && (
+            <LegendDot color="#f43f5e" label="Occupied" />
+          )}
+          {view === 'full' && (
+            <LegendDot color="#f59e0b" label="Reserved" />
+          )}
+          {view === 'subscriber' && (
+            <LegendDot color="#5d52f7" label="You" glow />
+          )}
+          {view === 'full' && (
+            <LegendDot color="#5d52f7" label="You" glow />
+          )}
         </div>
       )}
     </div>

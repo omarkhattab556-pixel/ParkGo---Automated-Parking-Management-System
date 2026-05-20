@@ -25,7 +25,10 @@
       "Bash(node --check src/controllers/parking.controller.js)",
       "Bash(node --check src/utils/codeGenerator.js)",
       "Bash(node --check src/services/reservation.service.js)",
-      "Bash(node --check src/config/nodemailer.js)"
+      "Bash(node --check src/config/nodemailer.js)",
+      "Bash(node --check src/controllers/subscriber.controller.js)",
+      "Bash(node --check src/routes/subscriber.routes.js)",
+      "Bash(node --check src/routes/facility.routes.js)"
     ]
   }
 }

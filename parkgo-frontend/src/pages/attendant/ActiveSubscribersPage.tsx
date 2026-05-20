@@ -13,8 +13,12 @@ import {
   Calendar,
   Car,
   CalendarClock,
+  Ban,
+  AlertTriangle,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+
+import { useAuthStore } from '@/store/authStore';
 
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
@@ -43,6 +47,11 @@ function SubscriberDetailModal({
   onClose: () => void;
 }) {
   const qc = useQueryClient();
+  const userType = useAuthStore((s) => s.user?.user_type);
+  const isManager = userType === 'manager';
+  const isAttendant = userType === 'attendant';
+  const [confirmDeactivate, setConfirmDeactivate] = useState(false);
+
   const detail = useQuery({
     queryKey: ['subscriber', 'detail', id],
     queryFn: () => subscriberApi.detail(id),
@@ -57,6 +66,25 @@ function SubscriberDetailModal({
     },
     onError: (err: { error?: string; message?: string }) => {
       toast.error(err.error || err.message || 'Could not reactivate');
+    },
+  });
+
+  const deactivate = useMutation({
+    mutationFn: () => subscriberApi.deactivate(id),
+    onSuccess: (data) => {
+      const note =
+        data.cancelled_reservations > 0
+          ? ` · ${data.cancelled_reservations} reservations cancelled`
+          : '';
+      toast.success(`Subscription cancelled${note}`);
+      setConfirmDeactivate(false);
+      qc.invalidateQueries({ queryKey: ['subscriber', 'detail', id] });
+      qc.invalidateQueries({ queryKey: ['subscribers'] });
+      qc.invalidateQueries({ queryKey: ['reservations'] });
+    },
+    onError: (err: { error?: string; message?: string }) => {
+      toast.error(err.error || err.message || 'Could not cancel');
+      setConfirmDeactivate(false);
     },
   });
 
@@ -152,8 +180,8 @@ function SubscriberDetailModal({
                 </div>
               </div>
 
-              {detail.data.subscriber?.status === 'inactive' && (
-                <div className="mt-4">
+              <div className="mt-4 flex flex-wrap gap-2">
+                {detail.data.subscriber?.status === 'inactive' && isAttendant && (
                   <Button
                     variant="success"
                     onClick={() => reactivate.mutate()}
@@ -162,9 +190,69 @@ function SubscriberDetailModal({
                     <RotateCcw className="h-4 w-4" />
                     Reactivate subscription
                   </Button>
-                </div>
-              )}
+                )}
+                {detail.data.subscriber?.status === 'active' && isManager && (
+                  <Button
+                    variant="danger"
+                    onClick={() => setConfirmDeactivate(true)}
+                    loading={deactivate.isPending}
+                  >
+                    <Ban className="h-4 w-4" />
+                    Cancel subscription
+                  </Button>
+                )}
+              </div>
             </section>
+
+            <AnimatePresence>
+              {confirmDeactivate && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 z-[60] bg-ink-900/60 backdrop-blur-md flex items-center justify-center p-4"
+                  onClick={() => setConfirmDeactivate(false)}
+                >
+                  <motion.div
+                    initial={{ scale: 0.92 }}
+                    animate={{ scale: 1 }}
+                    exit={{ scale: 0.92 }}
+                    onClick={(e) => e.stopPropagation()}
+                    className="w-full max-w-sm rounded-3xl bg-surface-0 p-6 shadow-popover"
+                  >
+                    <div className="flex items-center justify-center mb-4">
+                      <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-danger-500 to-danger-700 flex items-center justify-center shadow-[0_8px_24px_-8px_rgba(244,63,94,0.55)]">
+                        <AlertTriangle className="h-7 w-7 text-white" />
+                      </div>
+                    </div>
+                    <h2 className="font-display text-xl font-bold text-ink-900 text-center">
+                      Cancel subscription?
+                    </h2>
+                    <p className="text-sm text-ink-500 text-center mt-1">
+                      The subscriber will become inactive. Any active
+                      reservations they have will be cancelled too.
+                    </p>
+                    <div className="flex gap-3 mt-6">
+                      <Button
+                        variant="secondary"
+                        fullWidth
+                        onClick={() => setConfirmDeactivate(false)}
+                      >
+                        Keep
+                      </Button>
+                      <Button
+                        variant="danger"
+                        fullWidth
+                        loading={deactivate.isPending}
+                        onClick={() => deactivate.mutate()}
+                      >
+                        Yes, cancel
+                      </Button>
+                    </div>
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* Recent reservations */}
             <section>
