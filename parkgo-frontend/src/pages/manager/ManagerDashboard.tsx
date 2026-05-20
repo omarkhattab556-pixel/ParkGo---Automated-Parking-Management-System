@@ -508,16 +508,17 @@ export default function ManagerDashboard() {
                 Need maintenance?
               </p>
               <p className="text-sm text-ink-500">
-                Attendants can request a technician from the Maintenance page.
+                Call a technician on-site — the call surfaces the technician's
+                phone number to dispatch immediately.
               </p>
             </div>
           </div>
           <Link
-            to="/manager/subscribers"
-            className="inline-flex items-center gap-2 h-11 px-5 rounded-2xl bg-ink-900 text-white font-semibold text-sm shadow-elevated hover:bg-ink-800"
+            to="/manager/maintenance"
+            className="inline-flex items-center gap-2 h-11 px-5 rounded-2xl bg-gradient-to-br from-danger-500 to-danger-700 text-white font-semibold text-sm shadow-[0_8px_24px_-8px_rgba(244,63,94,0.55)] hover:-translate-y-0.5 transition-transform"
           >
-            <Users className="h-4 w-4" />
-            Manage subscribers
+            <Wrench className="h-4 w-4" />
+            Call technician
           </Link>
         </BentoCard>
       </BentoGrid>

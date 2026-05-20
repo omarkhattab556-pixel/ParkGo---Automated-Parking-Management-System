@@ -44,6 +44,9 @@ const RemoveFacilityPage = lazy(() => import('@/pages/manager/RemoveFacilityPage
 const ReportsPage = lazy(() => import('@/pages/manager/ReportsPage'));
 const ManagerAllSubscribersPage = lazy(() => import('@/pages/manager/ManagerAllSubscribersPage'));
 const ManagerActiveParkingsPage = lazy(() => import('@/pages/manager/ManagerActiveParkingsPage'));
+const ManagerMaintenancePage = lazy(
+  () => import('@/pages/manager/ManagerMaintenancePage')
+);
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -149,6 +152,7 @@ function App() {
                   path="active-parkings"
                   element={<ManagerActiveParkingsPage />}
                 />
+                <Route path="maintenance" element={<ManagerMaintenancePage />} />
                 <Route path="*" element={<Navigate to="/manager" replace />} />
               </Route>
 

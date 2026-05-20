@@ -74,11 +74,6 @@ export default function PickUpCarPage() {
     });
   };
 
-  const reset = () => {
-    setCodeInput('');
-    setPhase('form');
-    setResult(null);
-  };
 
   const stateColor = isOvertime
     ? { bg: 'bg-danger-50 border-danger-200', text: 'text-danger-700', icon: 'text-danger-600' }
@@ -292,14 +287,9 @@ export default function PickUpCarPage() {
                 </div>
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-3">
-                <Button variant="secondary" fullWidth onClick={reset}>
-                  Pick up another
-                </Button>
-                <Button fullWidth onClick={() => navigate('/subscriber')}>
-                  Back to dashboard
-                </Button>
-              </div>
+              <Button fullWidth size="lg" onClick={() => navigate('/subscriber')}>
+                Back to dashboard
+              </Button>
             </Card>
           </motion.div>
         )}

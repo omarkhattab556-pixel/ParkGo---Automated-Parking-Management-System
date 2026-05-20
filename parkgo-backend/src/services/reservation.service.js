@@ -153,37 +153,40 @@ export const pickFreeSpaceForWindow = async (startIso) => {
 /**
  * Pick a free space _right now_ for walk-ins (no 40% rule).
  * Free = not currently occupied AND not under an active reservation that has already started.
+ *
+ * Runs the three independent SELECTs in parallel to minimise round-trip latency.
  */
 export const pickFreeSpaceNow = async () => {
-  const { data: allSpaces, error: spErr } = await supabase
-    .from('parking_space')
-    .select('space_number, location');
-  if (spErr) throw spErr;
-  if (!allSpaces || allSpaces.length === 0) {
+  const nowIso = new Date().toISOString();
+
+  const [spacesRes, reservationsRes, parkingsRes] = await Promise.all([
+    supabase.from('parking_space').select('space_number, location'),
+    supabase
+      .from('reservation')
+      .select('parking_space')
+      .eq('status', 'active')
+      .lte('reservation_start', nowIso)
+      .gt('reservation_end', nowIso),
+    supabase
+      .from('parking')
+      .select('parking_space')
+      .is('retrieval_time', null),
+  ]);
+
+  if (spacesRes.error) throw spacesRes.error;
+  if (reservationsRes.error) throw reservationsRes.error;
+  if (parkingsRes.error) throw parkingsRes.error;
+
+  const allSpaces = spacesRes.data || [];
+  if (allSpaces.length === 0) {
     const err = new Error('No parking spaces configured');
     err.status = 500;
     throw err;
   }
 
-  const nowIso = new Date().toISOString();
-
-  const { data: activeReservationsNow, error: resErr } = await supabase
-    .from('reservation')
-    .select('parking_space')
-    .eq('status', 'active')
-    .lte('reservation_start', nowIso)
-    .gt('reservation_end', nowIso);
-  if (resErr) throw resErr;
-
-  const { data: activeParkings, error: parkErr } = await supabase
-    .from('parking')
-    .select('parking_space')
-    .is('retrieval_time', null);
-  if (parkErr) throw parkErr;
-
   const taken = new Set();
-  (activeReservationsNow || []).forEach((r) => taken.add(r.parking_space));
-  (activeParkings || []).forEach((p) => taken.add(p.parking_space));
+  (reservationsRes.data || []).forEach((r) => taken.add(r.parking_space));
+  (parkingsRes.data || []).forEach((p) => taken.add(p.parking_space));
 
   const free = allSpaces.filter((s) => !taken.has(s.space_number));
   if (free.length === 0) {

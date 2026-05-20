@@ -5,28 +5,34 @@ import supabase from '../config/supabase.js';
  * among active reservations and active parkings (retrieval_time IS NULL).
  *
  * Bounded retry: at most 20 attempts; throws if it cannot find a free code.
+ * Both uniqueness checks run in parallel per attempt to halve the latency.
  */
 export const generateConfirmationCode = async () => {
   for (let attempt = 0; attempt < 20; attempt++) {
     const code = Math.floor(100000 + Math.random() * 900000);
 
-    const { data: activeRes, error: resErr } = await supabase
-      .from('reservation')
-      .select('reservation_id')
-      .eq('confirmation_code', code)
-      .eq('status', 'active')
-      .limit(1);
-    if (resErr) throw resErr;
+    const [resCheck, parkCheck] = await Promise.all([
+      supabase
+        .from('reservation')
+        .select('reservation_id')
+        .eq('confirmation_code', code)
+        .eq('status', 'active')
+        .limit(1),
+      supabase
+        .from('parking')
+        .select('parking_code')
+        .eq('confirmation_code', code)
+        .is('retrieval_time', null)
+        .limit(1),
+    ]);
 
-    const { data: activePark, error: parkErr } = await supabase
-      .from('parking')
-      .select('parking_code')
-      .eq('confirmation_code', code)
-      .is('retrieval_time', null)
-      .limit(1);
-    if (parkErr) throw parkErr;
+    if (resCheck.error) throw resCheck.error;
+    if (parkCheck.error) throw parkCheck.error;
 
-    if ((activeRes?.length || 0) === 0 && (activePark?.length || 0) === 0) {
+    if (
+      (resCheck.data?.length || 0) === 0 &&
+      (parkCheck.data?.length || 0) === 0
+    ) {
       return code;
     }
   }

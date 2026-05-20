@@ -273,14 +273,9 @@ export default function DropOffCarPage() {
                 }
               />
 
-              <div className="flex flex-col sm:flex-row gap-3">
-                <Button variant="secondary" fullWidth onClick={reset}>
-                  New drop off
-                </Button>
-                <Button fullWidth onClick={() => navigate('/subscriber')}>
-                  Back to dashboard
-                </Button>
-              </div>
+              <Button fullWidth size="lg" onClick={() => navigate('/subscriber')}>
+                Back to dashboard
+              </Button>
             </Card>
           </motion.div>
         )}

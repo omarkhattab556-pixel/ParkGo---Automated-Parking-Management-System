@@ -3,7 +3,6 @@ import { BUSINESS } from '../config/constants.js';
 import {
   acquireInstaller,
   releaseInstaller,
-  releaseExpired,
 } from '../services/installer.service.js';
 import { pickFreeSpaceNow } from '../services/reservation.service.js';
 import { generateConfirmationCode } from '../utils/codeGenerator.js';
@@ -37,6 +36,12 @@ const fetchUserById = async (id) => {
  *
  * Acquires an installer; the parking row is inserted immediately, but the
  * installer stays busy for INSTALLER_OPERATION_SECONDS to simulate the bay.
+ *
+ * Performance notes:
+ *   - Independent reads run in parallel via Promise.all.
+ *   - `releaseExpired()` is skipped on the hot path — the cron job handles it.
+ *   - parking_space update + welcome email run AFTER the response (setImmediate)
+ *     so the client gets its confirmation as fast as possible.
  */
 export const dropOff = async (req, res, next) => {
   try {
@@ -58,13 +63,25 @@ export const dropOff = async (req, res, next) => {
     let reservationRow = null;
 
     if (confirmation_code) {
-      const { data: existingRes, error: resErr } = await supabase
-        .from('reservation')
-        .select('*')
-        .eq('confirmation_code', confirmation_code)
-        .eq('status', 'active')
-        .maybeSingle();
-      if (resErr) throw resErr;
+      // Reservation + already-parked check run in parallel
+      const [resQ, parkedQ] = await Promise.all([
+        supabase
+          .from('reservation')
+          .select('*')
+          .eq('confirmation_code', confirmation_code)
+          .eq('status', 'active')
+          .maybeSingle(),
+        supabase
+          .from('parking')
+          .select('parking_code')
+          .eq('confirmation_code', confirmation_code)
+          .is('retrieval_time', null)
+          .maybeSingle(),
+      ]);
+      if (resQ.error) throw resQ.error;
+      if (parkedQ.error) throw parkedQ.error;
+
+      const existingRes = resQ.data;
       if (!existingRes) {
         return res.status(404).json({
           error: 'No active reservation found for this code',
@@ -87,14 +104,7 @@ export const dropOff = async (req, res, next) => {
           error: 'This reservation expired (no-show grace period elapsed)',
         });
       }
-
-      const { data: alreadyParked } = await supabase
-        .from('parking')
-        .select('parking_code')
-        .eq('confirmation_code', confirmation_code)
-        .is('retrieval_time', null)
-        .maybeSingle();
-      if (alreadyParked) {
+      if (parkedQ.data) {
         return res.status(409).json({
           error: 'A parking session is already active for this code',
         });
@@ -104,21 +114,26 @@ export const dropOff = async (req, res, next) => {
       codeToUse = existingRes.confirmation_code;
       reservationRow = existingRes;
     } else {
-      const space = await pickFreeSpaceNow();
+      // Walk-in: pick a space + generate code in parallel (independent).
+      const [space, code] = await Promise.all([
+        pickFreeSpaceNow(),
+        generateConfirmationCode(),
+      ]);
       spaceNumber = space.space_number;
-      codeToUse = await generateConfirmationCode();
+      codeToUse = code;
     }
 
-    await releaseExpired();
     const installer = await acquireInstaller();
     if (!installer) {
-      const totalRes = await supabase
-        .from('installer')
-        .select('installer_id', { count: 'exact', head: true });
-      const freeRes = await supabase
-        .from('installer')
-        .select('installer_id', { count: 'exact', head: true })
-        .eq('is_free', true);
+      const [totalRes, freeRes] = await Promise.all([
+        supabase
+          .from('installer')
+          .select('installer_id', { count: 'exact', head: true }),
+        supabase
+          .from('installer')
+          .select('installer_id', { count: 'exact', head: true })
+          .eq('is_free', true),
+      ]);
       return res.status(503).json({
         error: 'All installers are busy',
         code: 'NO_FREE_INSTALLER',
@@ -145,26 +160,36 @@ export const dropOff = async (req, res, next) => {
       throw parkErr;
     }
 
-    await supabase
-      .from('parking_space')
-      .update({ is_occupied: true })
-      .eq('space_number', spaceNumber);
-
     setTimeout(() => {
       releaseInstaller(installer.installer_id).catch((e) =>
         console.error('[installer release error]', e)
       );
     }, OPERATION_MS);
 
-    if (!reservationRow) {
-      const user = await fetchUserById(subscriberNum);
-      if (user) {
-        sendDropOffCodeEmail(user, {
-          code: codeToUse,
-          spaceNumber,
-        }).catch((e) => console.error('[email] drop-off code:', e));
+    // Fire-and-forget: send response, then update the cached is_occupied flag
+    // and email the code in the background. None of these block the client.
+    setImmediate(() => {
+      supabase
+        .from('parking_space')
+        .update({ is_occupied: true })
+        .eq('space_number', spaceNumber)
+        .then(({ error }) => {
+          if (error) console.error('[parking_space update]', error);
+        });
+
+      if (!reservationRow) {
+        fetchUserById(subscriberNum)
+          .then((user) => {
+            if (user) {
+              return sendDropOffCodeEmail(user, {
+                code: codeToUse,
+                spaceNumber,
+              });
+            }
+          })
+          .catch((e) => console.error('[email] drop-off code:', e));
       }
-    }
+    });
 
     return res.status(201).json({
       success: true,
@@ -220,7 +245,6 @@ export const pickUp = async (req, res, next) => {
       elapsedMinutes - (parking.max_time_minutes || MAX_TIME_MINUTES)
     );
 
-    await releaseExpired();
     const installer = await acquireInstaller();
     if (!installer) {
       return res.status(503).json({
@@ -241,16 +265,22 @@ export const pickUp = async (req, res, next) => {
       throw updErr;
     }
 
-    await supabase
-      .from('parking_space')
-      .update({ is_occupied: false })
-      .eq('space_number', parking.parking_space);
-
     setTimeout(() => {
       releaseInstaller(installer.installer_id).catch((e) =>
         console.error('[installer release error]', e)
       );
     }, OPERATION_MS);
+
+    // Free the space flag in the background — display-only cache, not blocking.
+    setImmediate(() => {
+      supabase
+        .from('parking_space')
+        .update({ is_occupied: false })
+        .eq('space_number', parking.parking_space)
+        .then(({ error }) => {
+          if (error) console.error('[parking_space update]', error);
+        });
+    });
 
     return res.json({
       success: true,

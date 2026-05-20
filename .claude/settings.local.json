@@ -21,7 +21,11 @@
       "Bash(npx vite *)",
       "Bash(echo \"EXIT=$?\")",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:5174/)",
-      "Bash(curl -s http://localhost:5174/)"
+      "Bash(curl -s http://localhost:5174/)",
+      "Bash(node --check src/controllers/parking.controller.js)",
+      "Bash(node --check src/utils/codeGenerator.js)",
+      "Bash(node --check src/services/reservation.service.js)",
+      "Bash(node --check src/config/nodemailer.js)"
     ]
   }
 }
