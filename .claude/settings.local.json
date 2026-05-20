@@ -28,7 +28,8 @@
       "Bash(node --check src/config/nodemailer.js)",
       "Bash(node --check src/controllers/subscriber.controller.js)",
       "Bash(node --check src/routes/subscriber.routes.js)",
-      "Bash(node --check src/routes/facility.routes.js)"
+      "Bash(node --check src/routes/facility.routes.js)",
+      "Bash(node -e \"import\\('dotenv'\\).then\\(d => { d.default.config\\(\\); console.log\\('host =', JSON.stringify\\(process.env.SMTP_HOST\\)\\); console.log\\('user =', JSON.stringify\\(process.env.SMTP_USER\\)\\); console.log\\('pass set =', !!process.env.SMTP_PASS, 'len =', \\(process.env.SMTP_PASS || ''\\).length\\); console.log\\('hasSmtp =', Boolean\\(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS\\)\\); }\\);\")"
     ]
   }
 }
