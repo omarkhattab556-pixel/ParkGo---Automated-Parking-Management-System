@@ -8,7 +8,7 @@ export function Skeleton({
   return (
     <div
       className={cn(
-        'rounded-md bg-gradient-to-r from-slate-200 via-slate-100 to-slate-200 bg-[length:200%_100%] animate-shimmer',
+        'rounded-xl bg-gradient-to-r from-surface-200 via-surface-100 to-surface-200 bg-[length:200%_100%] animate-shimmer',
         className
       )}
       {...props}
@@ -19,10 +19,10 @@ export function Skeleton({
 /* ---------- Stat strip skeleton ---------- */
 export function StatCardSkeleton() {
   return (
-    <div className="rounded-2xl bg-white border border-slate-100 px-5 py-4">
-      <Skeleton className="h-3 w-20 mb-2" />
-      <Skeleton className="h-8 w-24" />
-      <Skeleton className="h-3 w-16 mt-2" />
+    <div className="rounded-3xl bg-surface-0 border border-surface-200 p-5 shadow-card">
+      <Skeleton className="h-3 w-20 mb-2.5" />
+      <Skeleton className="h-9 w-24 mb-2" />
+      <Skeleton className="h-3 w-16" />
     </div>
   );
 }
@@ -48,7 +48,7 @@ export function CardSkeleton({
   return (
     <div
       className={cn(
-        'rounded-2xl bg-white border border-slate-100 p-5 space-y-3',
+        'rounded-3xl bg-surface-0 border border-surface-200 p-5 space-y-3 shadow-card',
         className
       )}
     >
@@ -69,21 +69,21 @@ export function TableSkeleton({
   rows?: number;
 }) {
   return (
-    <div className="rounded-2xl bg-white border border-slate-100 overflow-hidden">
-      <div className="bg-slate-50 border-b border-slate-100 px-4 py-3 flex gap-4">
+    <div className="rounded-3xl bg-surface-0 border border-surface-200 overflow-hidden shadow-card">
+      <div className="bg-surface-50 border-b border-surface-200 px-4 py-3 flex gap-4">
         {Array.from({ length: columns }).map((_, i) => (
           <Skeleton key={i} className="h-3 flex-1" />
         ))}
       </div>
-      <div className="divide-y divide-slate-100">
+      <div className="divide-y divide-surface-200">
         {Array.from({ length: rows }).map((_, r) => (
-          <div key={r} className="px-4 py-3 flex gap-4">
+          <div key={r} className="px-4 py-3.5 flex gap-4">
             {Array.from({ length: columns }).map((_, c) => (
               <Skeleton
                 key={c}
                 className={cn(
                   'h-4 flex-1',
-                  c === 0 && 'max-w-[60px]', // narrower code column
+                  c === 0 && 'max-w-[60px]',
                   c === columns - 1 && 'max-w-[80px]'
                 )}
               />
@@ -99,7 +99,7 @@ export function TableSkeleton({
 export function ChartSkeleton({ height = 256 }: { height?: number }) {
   return (
     <div
-      className="rounded-2xl bg-white border border-slate-100 p-6 flex flex-col gap-3"
+      className="rounded-3xl bg-surface-0 border border-surface-200 p-6 flex flex-col gap-3 shadow-card"
       style={{ minHeight: height }}
     >
       <Skeleton className="h-4 w-1/3" />

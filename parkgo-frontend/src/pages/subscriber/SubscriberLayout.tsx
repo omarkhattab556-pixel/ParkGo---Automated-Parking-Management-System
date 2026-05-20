@@ -7,11 +7,11 @@ export default function SubscriberLayout() {
     <>
       <DashboardLayout
         items={subscriberNavItems}
-        brandColor="from-primary-500 to-primary-700"
+        brandColor="from-brand-500 to-brand-700"
+        roleLabel="Member"
       />
       <SubscriberBottomBar />
-      {/* Spacer so content doesn't sit underneath the fixed mobile bottom bar */}
-      <div className="md:hidden h-20" />
+      <div className="md:hidden h-24" />
     </>
   );
 }

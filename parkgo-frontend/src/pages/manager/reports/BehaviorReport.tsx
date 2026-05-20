@@ -17,7 +17,7 @@ import { ChartSkeleton, StatStripSkeleton } from '@/components/common/Skeleton';
 import { reportsApi } from '@/api/reports.api';
 import { formatDuration } from '@/utils/formatters';
 
-const DURATION_COLORS = ['#10b981', '#3b82f6', '#ef4444'];
+const DURATION_COLORS = ['#10b981', '#5d52f7', '#f43f5e'];
 
 function Stat({
   label,
@@ -29,14 +29,14 @@ function Stat({
   hint?: string;
 }) {
   return (
-    <div className="rounded-2xl bg-white border border-slate-100 p-5">
-      <p className="text-xs uppercase tracking-wider text-slate-500 font-medium">
+    <div className="rounded-3xl bg-surface-0 border border-surface-200 p-5 shadow-card">
+      <p className="text-[11px] uppercase tracking-[0.08em] text-ink-500 font-semibold">
         {label}
       </p>
-      <p className="text-3xl font-bold text-slate-900 tabular-nums mt-1">
+      <p className="font-display text-3xl font-bold text-ink-900 tabular mt-1">
         {value}
       </p>
-      {hint && <p className="text-xs text-slate-500 mt-1">{hint}</p>}
+      {hint && <p className="text-xs text-ink-500 mt-1">{hint}</p>}
     </div>
   );
 }
@@ -98,8 +98,8 @@ export function BehaviorReport({ month }: { month: string }) {
       </section>
 
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <div className="rounded-3xl bg-white border border-slate-100 p-6">
-          <h3 className="text-sm font-semibold text-slate-900 mb-3">
+        <div className="rounded-3xl bg-surface-0 border border-surface-200 p-6 shadow-card">
+          <h3 className="font-display text-base font-semibold text-ink-900 mb-3">
             Duration distribution
           </h3>
           {pieData.length === 0 ? (
@@ -144,8 +144,8 @@ export function BehaviorReport({ month }: { month: string }) {
           )}
         </div>
 
-        <div className="rounded-3xl bg-white border border-slate-100 p-6">
-          <h3 className="text-sm font-semibold text-slate-900 mb-3">
+        <div className="rounded-3xl bg-surface-0 border border-surface-200 p-6 shadow-card">
+          <h3 className="font-display text-base font-semibold text-ink-900 mb-3">
             Extension & late return rates
           </h3>
           <div className="h-72">
@@ -153,8 +153,8 @@ export function BehaviorReport({ month }: { month: string }) {
               <BarChart data={ratesData}>
                 <defs>
                   <linearGradient id="extBar" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#f59e0b" />
-                    <stop offset="100%" stopColor="#d97706" />
+                    <stop offset="0%" stopColor="#f97316" />
+                    <stop offset="100%" stopColor="#c2410c" />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />

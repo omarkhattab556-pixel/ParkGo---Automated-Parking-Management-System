@@ -4,20 +4,23 @@ import { Car, Activity, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TableSkeleton } from '@/components/common/Skeleton';
 import { EmptyState } from '@/components/common/EmptyState';
+import { Card } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
+import { PageHeader } from '@/components/ui/PageHeader';
 import { parkingApi } from '@/api/parking.api';
 import { formatCode, formatDateTime, formatDuration } from '@/utils/formatters';
 
-function rowStatus(elapsedMin: number, maxMin: number) {
+function rowStatusTone(elapsedMin: number, maxMin: number): { label: string; tone: 'danger' | 'warning' | 'success' } {
   const remaining = maxMin - elapsedMin;
-  if (remaining < 0) return { label: 'Overtime', color: 'bg-danger-100 text-danger-700' };
-  if (remaining < 30) return { label: 'Soon', color: 'bg-amber-100 text-amber-700' };
-  return { label: 'OK', color: 'bg-emerald-100 text-emerald-700' };
+  if (remaining < 0) return { label: 'Overtime', tone: 'danger' };
+  if (remaining < 30) return { label: 'Soon', tone: 'warning' };
+  return { label: 'OK', tone: 'success' };
 }
 
 function rowBg(elapsedMin: number, maxMin: number) {
   const remaining = maxMin - elapsedMin;
   if (remaining < 0) return 'bg-danger-50/50';
-  if (remaining < 30) return 'bg-amber-50/40';
+  if (remaining < 30) return 'bg-warning-50/40';
   return '';
 }
 
@@ -46,31 +49,32 @@ export default function ActiveParkingsPage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex items-center gap-3">
-        <div className="h-11 w-11 rounded-xl bg-success-50 flex items-center justify-center">
-          <Car className="h-5 w-5 text-success-700" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
-            Active parkings
-          </h1>
-          <p className="text-slate-500 text-sm flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 text-emerald-700">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              Live · refreshes every 10s
+      <PageHeader
+        eyebrow="Live operations"
+        title={
+          <span className="inline-flex items-center gap-3">
+            <span className="h-10 w-10 rounded-2xl bg-success-50 border border-success-100 flex items-center justify-center text-success-600">
+              <Car className="h-5 w-5" />
             </span>
-          </p>
-        </div>
-      </header>
+            Active parkings
+          </span>
+        }
+        description="Refreshes every 10 seconds"
+        actions={
+          <Badge tone="success" dot size="lg">Live</Badge>
+        }
+      />
 
       {overtimeCount > 0 && (
-        <div className="rounded-2xl bg-danger-50 border border-danger-200 p-4 flex items-start gap-3">
-          <AlertTriangle className="h-5 w-5 text-danger-600 shrink-0 mt-0.5" />
+        <div className="rounded-3xl bg-gradient-to-r from-danger-50 to-warning-50 border border-danger-200 p-4 flex items-start gap-3">
+          <span className="h-10 w-10 rounded-2xl bg-gradient-to-br from-danger-500 to-danger-700 flex items-center justify-center shadow-soft shrink-0">
+            <AlertTriangle className="h-5 w-5 text-white" />
+          </span>
           <div>
-            <p className="font-semibold text-danger-800 text-sm">
+            <p className="font-semibold text-danger-700 text-sm">
               {overtimeCount} vehicle{overtimeCount > 1 ? 's' : ''} over time limit
             </p>
-            <p className="text-danger-700 text-sm">
+            <p className="text-danger-700/80 text-sm">
               Subscribers are subject to a delay strike per late return.
             </p>
           </div>
@@ -88,10 +92,10 @@ export default function ActiveParkingsPage() {
       )}
 
       {!isLoading && data && data.length > 0 && (
-        <div className="rounded-2xl bg-white border border-slate-100 overflow-hidden">
+        <Card padding="none" className="overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
+              <thead className="bg-surface-50 text-ink-500 text-xs uppercase tracking-wider border-b border-surface-200">
                 <tr>
                   <th className="px-4 py-3 text-left font-semibold">Code</th>
                   <th className="px-4 py-3 text-left font-semibold">Subscriber</th>
@@ -103,60 +107,53 @@ export default function ActiveParkingsPage() {
                   <th className="px-4 py-3 text-left font-semibold">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-surface-200">
                 {data.map((p) => {
                   const start = new Date(p.parking_date).getTime();
-                  const elapsedMin = Math.floor(
-                    (Date.now() - start) / 60000
-                  );
+                  const elapsedMin = Math.floor((Date.now() - start) / 60000);
                   const maxMin = p.max_time_minutes || 240;
                   const remainingMin = maxMin - elapsedMin;
-                  const status = rowStatus(elapsedMin, maxMin);
+                  const status = rowStatusTone(elapsedMin, maxMin);
                   return (
                     <tr
                       key={p.parking_code}
-                      className={cn('transition-colors', rowBg(elapsedMin, maxMin))}
+                      className={cn('transition-colors hover:bg-surface-50', rowBg(elapsedMin, maxMin))}
                     >
-                      <td className="px-4 py-3 font-mono font-semibold text-slate-900">
+                      <td className="px-4 py-3 font-mono font-semibold text-ink-900 tabular">
                         {formatCode(p.confirmation_code)}
                       </td>
-                      <td className="px-4 py-3 text-slate-700">
+                      <td className="px-4 py-3 text-ink-700 font-medium">
                         {p.user
                           ? `${p.user.first_name} ${p.user.last_name}`
                           : `#${p.subscriber_num}`}
                       </td>
-                      <td className="px-4 py-3 text-slate-700 font-mono text-xs">
+                      <td className="px-4 py-3 text-ink-700 font-mono text-xs">
                         {p.subscriber?.license_plate_number || '—'}
                       </td>
-                      <td className="px-4 py-3 text-slate-700">
-                        #{p.parking_space}
+                      <td className="px-4 py-3">
+                        <Badge tone="neutral" size="md">#{p.parking_space}</Badge>
                       </td>
-                      <td className="px-4 py-3 text-slate-600">
+                      <td className="px-4 py-3 text-ink-600">
                         {formatDateTime(p.parking_date)}
                       </td>
-                      <td className="px-4 py-3 tabular-nums">
+                      <td className="px-4 py-3 tabular">
                         {remainingMin < 0 ? (
                           <span className="font-semibold text-danger-700">
                             +{formatDuration(-remainingMin)} over
                           </span>
                         ) : (
-                          <span className="text-slate-700">
+                          <span className="text-ink-700 font-medium">
                             {formatDuration(remainingMin)}
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-slate-700 tabular-nums">
+                      <td className="px-4 py-3 text-ink-700 tabular">
                         {p.extension_count || 0}
                       </td>
                       <td className="px-4 py-3">
-                        <span
-                          className={cn(
-                            'inline-flex px-2 py-0.5 text-xs font-medium rounded-full',
-                            status.color
-                          )}
-                        >
+                        <Badge tone={status.tone} dot size="md">
                           {status.label}
-                        </span>
+                        </Badge>
                       </td>
                     </tr>
                   );
@@ -164,7 +161,7 @@ export default function ActiveParkingsPage() {
               </tbody>
             </table>
           </div>
-        </div>
+        </Card>
       )}
     </div>
   );

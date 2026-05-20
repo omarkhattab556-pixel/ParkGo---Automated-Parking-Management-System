@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { PageHeader } from '@/components/ui/PageHeader';
 import { facilityApi } from '@/api/facility.api';
 import { cn } from '@/lib/utils';
 
@@ -77,28 +78,27 @@ export default function AddFacilityPage() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      <header className="flex items-center gap-3">
-        <div className="h-11 w-11 rounded-xl bg-success-50 flex items-center justify-center">
-          <PlusSquare className="h-5 w-5 text-success-700" />
-        </div>
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
+      <PageHeader
+        eyebrow="Provision"
+        title={
+          <span className="inline-flex items-center gap-3">
+            <span className="h-10 w-10 rounded-2xl bg-success-50 border border-success-100 flex items-center justify-center text-success-600">
+              <PlusSquare className="h-5 w-5" />
+            </span>
             Add facility
-          </h1>
-          <p className="text-slate-500 text-sm">
-            Provision new parking spaces or installer machines
-          </p>
-        </div>
-      </header>
+          </span>
+        }
+        description="Provision new parking spaces or installer machines"
+      />
 
-      <div className="inline-flex bg-white rounded-xl border border-slate-200 p-1 gap-1">
+      <div className="inline-flex bg-surface-0 rounded-2xl border border-surface-200 p-1 gap-1 shadow-soft">
         <button
           onClick={() => setTab('space')}
           className={cn(
-            'px-4 py-1.5 rounded-lg text-sm font-medium transition flex items-center gap-2',
+            'px-4 py-1.5 rounded-xl text-sm font-semibold transition-all flex items-center gap-2',
             tab === 'space'
-              ? 'bg-primary-500 text-white shadow-sm'
-              : 'text-slate-600 hover:bg-slate-50'
+              ? 'bg-gradient-to-br from-success-500 to-success-700 text-white shadow-soft'
+              : 'text-ink-600 hover:bg-surface-100'
           )}
         >
           <MapPin className="h-4 w-4" />
@@ -107,10 +107,10 @@ export default function AddFacilityPage() {
         <button
           onClick={() => setTab('installer')}
           className={cn(
-            'px-4 py-1.5 rounded-lg text-sm font-medium transition flex items-center gap-2',
+            'px-4 py-1.5 rounded-xl text-sm font-semibold transition-all flex items-center gap-2',
             tab === 'installer'
-              ? 'bg-primary-500 text-white shadow-sm'
-              : 'text-slate-600 hover:bg-slate-50'
+              ? 'bg-gradient-to-br from-success-500 to-success-700 text-white shadow-soft'
+              : 'text-ink-600 hover:bg-surface-100'
           )}
         >
           <Cog className="h-4 w-4" />
@@ -123,7 +123,7 @@ export default function AddFacilityPage() {
           key="space"
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-3xl bg-white border border-slate-100 p-6 md:p-8 shadow-[0_2px_8px_rgba(0,0,0,0.04)] space-y-5"
+          className="rounded-3xl bg-surface-0 border border-surface-200 p-6 md:p-8 shadow-card space-y-5"
         >
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
@@ -141,7 +141,7 @@ export default function AddFacilityPage() {
               onChange={(e) => setLocation(e.target.value)}
             />
           </div>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-ink-500">
             Leave the number empty to auto-assign{' '}
             <span className="font-mono font-semibold">{nextSpaceNumber}</span>.
             Currently the facility has{' '}
@@ -165,7 +165,7 @@ export default function AddFacilityPage() {
           key="installer"
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-3xl bg-white border border-slate-100 p-6 md:p-8 shadow-[0_2px_8px_rgba(0,0,0,0.04)] space-y-5"
+          className="rounded-3xl bg-surface-0 border border-surface-200 p-6 md:p-8 shadow-card space-y-5"
         >
           <Input
             label="Installer name"
@@ -174,7 +174,7 @@ export default function AddFacilityPage() {
             value={installerName}
             onChange={(e) => setInstallerName(e.target.value)}
           />
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-ink-500">
             Currently the facility has{' '}
             <span className="font-semibold">
               {installers.data?.length ?? '—'}

@@ -11,6 +11,7 @@ import {
 import toast from 'react-hot-toast';
 
 import { Button } from '@/components/ui/Button';
+import { PageHeader } from '@/components/ui/PageHeader';
 import { cn } from '@/lib/utils';
 import { reportsApi, type ReportType } from '@/api/reports.api';
 import { OccupancyReport } from './reports/OccupancyReport';
@@ -48,59 +49,59 @@ export default function ReportsPage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between print:hidden">
-        <div className="flex items-center gap-3">
-          <div className="h-11 w-11 rounded-xl bg-primary-50 flex items-center justify-center">
-            <BarChart3 className="h-5 w-5 text-primary-600" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
+      <div className="print:hidden">
+        <PageHeader
+          eyebrow="Analytics"
+          title={
+            <span className="inline-flex items-center gap-3">
+              <span className="h-10 w-10 rounded-2xl bg-brand-50 border border-brand-100 flex items-center justify-center text-brand-600">
+                <BarChart3 className="h-5 w-5" />
+              </span>
               Reports
-            </h1>
-            <p className="text-slate-500 text-sm">
-              Operational analytics — pick a month and tab
-            </p>
-          </div>
-        </div>
+            </span>
+          }
+          description="Operational analytics — pick a month and tab"
+          actions={
+            <>
+              <input
+                type="month"
+                value={month}
+                onChange={(e) => setMonth(e.target.value)}
+                className="h-11 rounded-2xl border border-surface-200 bg-surface-0 px-3 text-sm shadow-soft focus:outline-none focus:ring-4 focus:ring-brand-100 focus:border-brand-500"
+              />
+              <Button
+                variant="secondary"
+                size="md"
+                onClick={() => window.print()}
+                title="Print or save as PDF"
+              >
+                <Printer className="h-4 w-4" />
+                <span className="hidden sm:inline">Print / PDF</span>
+              </Button>
+              <Button
+                variant="primary"
+                size="md"
+                onClick={exportCsv}
+                loading={exporting}
+              >
+                <Download className="h-4 w-4" />
+                <span className="hidden sm:inline">CSV</span>
+              </Button>
+            </>
+          }
+        />
+      </div>
 
-        <div className="flex items-center gap-2">
-          <input
-            type="month"
-            value={month}
-            onChange={(e) => setMonth(e.target.value)}
-            className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-400"
-          />
-          <Button
-            variant="secondary"
-            size="md"
-            onClick={() => window.print()}
-            title="Print or save as PDF"
-          >
-            <Printer className="h-4 w-4" />
-            <span className="hidden sm:inline">Print / PDF</span>
-          </Button>
-          <Button
-            variant="primary"
-            size="md"
-            onClick={exportCsv}
-            loading={exporting}
-          >
-            <Download className="h-4 w-4" />
-            <span className="hidden sm:inline">CSV</span>
-          </Button>
-        </div>
-      </header>
-
-      <div className="inline-flex bg-white rounded-xl border border-slate-200 p-1 gap-1 print:hidden">
+      <div className="inline-flex bg-surface-0 rounded-2xl border border-surface-200 p-1 gap-1 shadow-soft print:hidden">
         {tabs.map((t) => (
           <button
             key={t.key}
             onClick={() => setActive(t.key)}
             className={cn(
-              'px-4 py-1.5 rounded-lg text-sm font-medium transition flex items-center gap-2',
+              'px-4 py-1.5 rounded-xl text-sm font-semibold transition-all flex items-center gap-2',
               active === t.key
-                ? 'bg-primary-500 text-white shadow-sm'
-                : 'text-slate-600 hover:bg-slate-50'
+                ? 'bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-soft'
+                : 'text-ink-600 hover:bg-surface-100'
             )}
           >
             <t.icon className="h-4 w-4" />

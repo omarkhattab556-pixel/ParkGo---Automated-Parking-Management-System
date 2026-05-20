@@ -34,61 +34,60 @@ export function InstallerAnimation({
     title || (direction === 'park' ? 'Parking your vehicle' : 'Retrieving your vehicle');
 
   return (
-    <div className="rounded-3xl bg-white border border-slate-100 p-8 shadow-lg">
-      <div className="flex items-center justify-center gap-3 mb-6">
+    <div className="rounded-3xl bg-surface-0 border border-surface-200 p-8 shadow-elevated relative overflow-hidden">
+      <div
+        aria-hidden
+        className="absolute -top-20 -right-20 h-56 w-56 rounded-full bg-brand-100 blur-3xl opacity-60"
+      />
+      <div className="relative flex items-center justify-center gap-3 mb-6">
         <motion.div
           animate={{ rotate: 360 }}
-          transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
-          className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center shadow-md"
+          transition={{ duration: 2.4, repeat: Infinity, ease: 'linear' }}
+          className="h-12 w-12 rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center shadow-[0_8px_24px_-8px_rgba(93,82,247,0.55)]"
         >
-          <Cog className="h-5 w-5 text-white" />
+          <Cog className="h-5 w-5 text-white" strokeWidth={2.4} />
         </motion.div>
         <div>
-          <h3 className="text-xl font-bold text-slate-900">{heading}</h3>
-          <p className="text-sm text-slate-500">
-            {installerName} is on it
-          </p>
+          <h3 className="font-display text-xl font-bold text-ink-900">{heading}</h3>
+          <p className="text-sm text-ink-500">{installerName} is on it</p>
         </div>
       </div>
 
-      {/* The "bay" */}
-      <div className="relative h-32 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 overflow-hidden">
-        <div className="absolute inset-y-0 left-2 w-8 flex items-center justify-center text-[10px] font-bold text-slate-400 rotate-90 origin-center select-none">
+      {/* Bay */}
+      <div className="relative h-32 rounded-2xl border-2 border-dashed border-surface-300 bg-gradient-to-r from-surface-50 via-surface-100 to-surface-50 overflow-hidden">
+        <div className="absolute inset-y-0 left-2 w-8 flex items-center justify-center text-[10px] font-bold text-ink-400 rotate-90 origin-center select-none">
           BAY
         </div>
-        <div className="absolute inset-y-0 right-2 w-8 flex items-center justify-center text-[10px] font-bold text-slate-400 -rotate-90 origin-center select-none">
+        <div className="absolute inset-y-0 right-2 w-8 flex items-center justify-center text-[10px] font-bold text-ink-400 -rotate-90 origin-center select-none">
           OUT
         </div>
 
         <motion.div
           initial={{ x: direction === 'park' ? '-110%' : '110%' }}
           animate={{ x: direction === 'park' ? '110%' : '-110%' }}
-          transition={{
-            duration: totalSeconds,
-            ease: 'easeInOut',
-          }}
+          transition={{ duration: totalSeconds, ease: 'easeInOut' }}
           className="absolute top-1/2 -translate-y-1/2"
         >
-          <div className="bg-gradient-to-br from-primary-500 to-primary-700 rounded-2xl px-4 py-3 shadow-xl">
+          <div className="bg-gradient-to-br from-brand-500 to-brand-700 rounded-2xl px-4 py-3 shadow-[0_12px_24px_-8px_rgba(93,82,247,0.55)]">
             <Car className="h-8 w-8 text-white" strokeWidth={2.2} />
           </div>
         </motion.div>
       </div>
 
-      {/* Progress bar */}
+      {/* Progress */}
       <div className="mt-6">
-        <div className="flex justify-between text-xs text-slate-500 mb-1.5">
-          <span>Progress</span>
-          <span className="font-semibold tabular-nums">
+        <div className="flex justify-between text-xs text-ink-500 mb-1.5">
+          <span className="font-medium">Progress</span>
+          <span className="font-bold tabular text-ink-900">
             {Math.max(0, remaining)}s remaining
           </span>
         </div>
-        <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+        <div className="h-2.5 bg-surface-100 rounded-full overflow-hidden border border-surface-200">
           <motion.div
             initial={{ width: '0%' }}
             animate={{ width: `${progress}%` }}
             transition={{ duration: 1, ease: 'linear' }}
-            className="h-full bg-gradient-to-r from-primary-500 to-primary-700 rounded-full"
+            className="h-full bg-gradient-to-r from-brand-500 via-brand-600 to-accent-500 rounded-full"
           />
         </div>
       </div>

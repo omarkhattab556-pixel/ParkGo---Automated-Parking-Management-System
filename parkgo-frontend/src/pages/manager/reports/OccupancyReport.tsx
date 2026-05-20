@@ -27,17 +27,17 @@ function Stat({
   trend?: 'up' | 'down' | 'flat';
 }) {
   return (
-    <div className="rounded-2xl bg-white border border-slate-100 p-5">
-      <p className="text-xs uppercase tracking-wider text-slate-500 font-medium">
+    <div className="rounded-3xl bg-surface-0 border border-surface-200 p-5 shadow-card">
+      <p className="text-[11px] uppercase tracking-[0.08em] text-ink-500 font-semibold">
         {label}
       </p>
       <div className="flex items-baseline gap-2 mt-1">
-        <p className="text-3xl font-bold text-slate-900 tabular-nums">{value}</p>
-        {trend === 'up' && <TrendingUp className="h-5 w-5 text-emerald-500" />}
-        {trend === 'down' && <TrendingDown className="h-5 w-5 text-rose-500" />}
-        {trend === 'flat' && <Minus className="h-5 w-5 text-slate-400" />}
+        <p className="font-display text-3xl font-bold text-ink-900 tabular">{value}</p>
+        {trend === 'up' && <TrendingUp className="h-5 w-5 text-success-500" />}
+        {trend === 'down' && <TrendingDown className="h-5 w-5 text-danger-500" />}
+        {trend === 'flat' && <Minus className="h-5 w-5 text-ink-400" />}
       </div>
-      {hint && <p className="text-xs text-slate-500 mt-1">{hint}</p>}
+      {hint && <p className="text-xs text-ink-500 mt-1">{hint}</p>}
     </div>
   );
 }
@@ -92,8 +92,8 @@ export function OccupancyReport({ month }: { month: string }) {
         />
       </section>
 
-      <section className="rounded-3xl bg-white border border-slate-100 p-6">
-        <h3 className="text-sm font-semibold text-slate-900 mb-3">
+      <section className="rounded-3xl bg-surface-0 border border-surface-200 p-6 shadow-card">
+        <h3 className="font-display text-base font-semibold text-ink-900 mb-3">
           Daily occupancy this month
         </h3>
         {dailyData.length === 0 ? (
@@ -104,8 +104,8 @@ export function OccupancyReport({ month }: { month: string }) {
               <BarChart data={dailyData}>
                 <defs>
                   <linearGradient id="dailyBar" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#3b82f6" />
-                    <stop offset="100%" stopColor="#1d4ed8" />
+                    <stop offset="0%" stopColor="#5d52f7" />
+                    <stop offset="100%" stopColor="#3a2bc4" />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
@@ -131,8 +131,8 @@ export function OccupancyReport({ month }: { month: string }) {
         )}
       </section>
 
-      <section className="rounded-3xl bg-white border border-slate-100 p-6">
-        <h3 className="text-sm font-semibold text-slate-900 mb-3">
+      <section className="rounded-3xl bg-surface-0 border border-surface-200 p-6 shadow-card">
+        <h3 className="font-display text-base font-semibold text-ink-900 mb-3">
           Hourly heatmap (avg occupancy by hour-of-day)
         </h3>
         <div className="grid grid-cols-12 gap-1.5">

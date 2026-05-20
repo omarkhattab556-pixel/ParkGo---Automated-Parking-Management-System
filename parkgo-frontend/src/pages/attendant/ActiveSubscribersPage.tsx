@@ -18,6 +18,9 @@ import toast from 'react-hot-toast';
 
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
+import { PageHeader } from '@/components/ui/PageHeader';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { TableSkeleton } from '@/components/common/Skeleton';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -301,39 +304,38 @@ export default function ActiveSubscribersPage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex items-center gap-3">
-        <div className="h-11 w-11 rounded-xl bg-primary-50 flex items-center justify-center">
-          <Users className="h-5 w-5 text-primary-600" />
-        </div>
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
+      <PageHeader
+        eyebrow="Directory"
+        title={
+          <span className="inline-flex items-center gap-3">
+            <span className="h-10 w-10 rounded-2xl bg-accent-50 border border-accent-100 flex items-center justify-center text-accent-600">
+              <Users className="h-5 w-5" />
+            </span>
             Active subscribers
-          </h1>
-          <p className="text-slate-500 text-sm">
-            Search by name, email, license plate, or ID
-          </p>
-        </div>
-      </header>
+          </span>
+        }
+        description="Search by name, email, license plate, or ID"
+      />
 
       <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
         <div className="flex-1">
           <Input
-            placeholder="Search..."
+            placeholder="Search…"
             icon={<Search className="h-4 w-4" />}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <div className="inline-flex bg-white rounded-xl border border-slate-200 p-1 gap-1 self-start sm:self-auto">
+        <div className="inline-flex bg-surface-0 rounded-2xl border border-surface-200 p-1 gap-1 self-start sm:self-auto shadow-soft">
           {(['all', 'active', 'inactive'] as Filter[]).map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
               className={cn(
-                'px-4 py-1.5 rounded-lg text-sm font-medium capitalize transition',
+                'px-4 py-1.5 rounded-xl text-sm font-semibold capitalize transition-all',
                 filter === f
-                  ? 'bg-primary-500 text-white shadow-sm'
-                  : 'text-slate-600 hover:bg-slate-50'
+                  ? 'bg-gradient-to-br from-accent-500 to-accent-700 text-white shadow-soft'
+                  : 'text-ink-600 hover:bg-surface-100'
               )}
             >
               {f}
@@ -357,10 +359,10 @@ export default function ActiveSubscribersPage() {
       )}
 
       {!isLoading && filtered.length > 0 && (
-        <div className="rounded-2xl bg-white border border-slate-100 overflow-hidden">
+        <Card padding="none" className="overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
+              <thead className="bg-surface-50 text-ink-500 text-xs uppercase tracking-wider border-b border-surface-200">
                 <tr>
                   <th className="px-4 py-3 text-left font-semibold">ID</th>
                   <th className="px-4 py-3 text-left font-semibold">Name</th>
@@ -373,46 +375,39 @@ export default function ActiveSubscribersPage() {
                   <th className="px-4 py-3 text-right font-semibold">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-surface-200">
                 {filtered.map((u) => {
                   const status = u.subscriber?.status || 'active';
                   return (
-                    <tr key={u.id} className="hover:bg-slate-50">
-                      <td className="px-4 py-3 font-mono text-slate-700">
+                    <tr key={u.id} className="hover:bg-surface-50 transition-colors">
+                      <td className="px-4 py-3 font-mono text-ink-700 tabular">
                         {u.id}
                       </td>
-                      <td className="px-4 py-3 font-medium text-slate-900">
+                      <td className="px-4 py-3 font-semibold text-ink-900">
                         {u.first_name} {u.last_name}
                       </td>
-                      <td className="px-4 py-3 text-slate-600">{u.email}</td>
-                      <td className="px-4 py-3 text-slate-600">
+                      <td className="px-4 py-3 text-ink-600">{u.email}</td>
+                      <td className="px-4 py-3 text-ink-600">
                         {u.phone_number || '—'}
                       </td>
-                      <td className="px-4 py-3 text-slate-700 font-mono text-xs">
+                      <td className="px-4 py-3 text-ink-700 font-mono text-xs">
                         {u.subscriber?.license_plate_number || '—'}
                       </td>
                       <td className="px-4 py-3">
-                        <span
-                          className={cn(
-                            'inline-flex px-2 py-0.5 text-xs font-medium rounded-full',
-                            status === 'active'
-                              ? 'bg-emerald-100 text-emerald-700'
-                              : 'bg-danger-100 text-danger-700'
-                          )}
-                        >
+                        <Badge tone={status === 'active' ? 'success' : 'danger'} dot size="md">
                           {status}
-                        </span>
+                        </Badge>
                       </td>
-                      <td className="px-4 py-3 text-slate-700 tabular-nums">
+                      <td className="px-4 py-3 text-ink-700 tabular">
                         {u.subscriber?.delay_count ?? 0}
                       </td>
-                      <td className="px-4 py-3 text-slate-600">
+                      <td className="px-4 py-3 text-ink-600">
                         {formatDate(u.subscriber?.registration_date)}
                       </td>
                       <td className="px-4 py-3 text-right">
                         <button
                           onClick={() => setOpenId(u.id)}
-                          className="inline-flex items-center gap-1 text-sm font-medium text-primary-600 hover:text-primary-700"
+                          className="inline-flex items-center gap-1 text-sm font-semibold text-brand-600 hover:text-brand-700"
                         >
                           <Eye className="h-4 w-4" />
                           View
@@ -424,7 +419,7 @@ export default function ActiveSubscribersPage() {
               </tbody>
             </table>
           </div>
-        </div>
+        </Card>
       )}
 
       <AnimatePresence>

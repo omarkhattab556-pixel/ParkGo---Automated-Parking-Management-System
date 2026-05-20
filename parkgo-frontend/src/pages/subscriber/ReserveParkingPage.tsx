@@ -16,6 +16,8 @@ import toast from 'react-hot-toast';
 
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Card } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
 import { CodeDisplay } from '@/components/common/CodeDisplay';
 import { reservationApi, type CreateReservationResult } from '@/api/reservation.api';
 import type { AvailabilityResult } from '@/api/reservation.api';
@@ -27,7 +29,6 @@ const MIN_OFFSET_HOURS = BUSINESS_RULES.MIN_RESERVATION_HOURS_AHEAD;
 const MAX_OFFSET_DAYS = BUSINESS_RULES.MAX_RESERVATION_DAYS_AHEAD;
 const MIN_FREE_PCT = BUSINESS_RULES.MIN_FREE_PERCENT;
 
-// 15-minute time options for a day
 const timeOptions: string[] = (() => {
   const out: string[] = [];
   for (let h = 0; h < 24; h++) {
@@ -94,7 +95,6 @@ export default function ReserveParkingPage() {
     },
   });
 
-  // Re-check availability whenever the chosen datetime is valid
   useEffect(() => {
     if (!combinedIso || validationError) {
       setAvailability(null);
@@ -117,36 +117,42 @@ export default function ReserveParkingPage() {
         <Link
           to="/subscriber"
           aria-label="Back to dashboard"
-          className="h-9 w-9 inline-flex items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
+          className="h-10 w-10 inline-flex items-center justify-center rounded-2xl text-ink-600 hover:bg-surface-100"
         >
           <ArrowLeft className="h-5 w-5" />
         </Link>
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
+          <p className="text-[11px] uppercase tracking-[0.12em] font-semibold text-brand-600">
+            New reservation
+          </p>
+          <h1 className="font-display text-2xl md:text-3xl font-bold text-ink-900 tracking-tight">
             Reserve a parking spot
           </h1>
-          <p className="text-slate-500 text-sm">
+          <p className="text-ink-500 text-sm">
             Bookings must be {MIN_OFFSET_HOURS}h–{MAX_OFFSET_DAYS}d in advance.
           </p>
         </div>
       </header>
 
       {/* Live availability strip */}
-      <div className="rounded-2xl bg-white border border-slate-100 px-5 py-4 flex items-center gap-3">
-        <Info className="h-5 w-5 text-primary-500 shrink-0" />
-        <div className="text-sm text-slate-700">
-          Free right now:{' '}
-          <span className="font-bold tabular-nums">
-            {load.data ? `${load.data.free} / ${load.data.total}` : '—'}
-          </span>{' '}
-          ·{' '}
-          <span className="text-slate-500">
+      <Card variant="glass" padding="md" className="flex items-center gap-3">
+        <span className="h-10 w-10 rounded-xl bg-brand-50 border border-brand-100 flex items-center justify-center text-brand-600 shrink-0">
+          <Info className="h-5 w-5" />
+        </span>
+        <div className="text-sm text-ink-700 flex-1">
+          <p>
+            Free right now:{' '}
+            <span className="font-bold tabular text-ink-900">
+              {load.data ? `${load.data.free} / ${load.data.total}` : '—'}
+            </span>
+          </p>
+          <p className="text-ink-500 text-xs mt-0.5">
             Reservations require ≥{MIN_FREE_PCT}% free at the requested time.
-          </span>
+          </p>
         </div>
-      </div>
+      </Card>
 
-      <div className="rounded-3xl bg-white border border-slate-100 p-6 md:p-8 shadow-[0_2px_8px_rgba(0,0,0,0.04)] space-y-5">
+      <Card variant="default" padding="xl" className="space-y-5">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input
             type="date"
@@ -158,17 +164,17 @@ export default function ReserveParkingPage() {
             onChange={(e) => setDate(e.target.value)}
           />
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">
+            <label className="block text-[13px] font-semibold text-ink-700 mb-1.5">
               Time (15-min slots)
             </label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-400 pointer-events-none">
                 <Clock className="h-4 w-4" />
               </span>
               <select
                 value={time}
                 onChange={(e) => setTime(e.target.value)}
-                className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-400 appearance-none"
+                className="h-12 w-full rounded-2xl border border-surface-200 bg-surface-0 pl-11 pr-4 text-sm shadow-soft focus:outline-none focus:ring-4 focus:ring-brand-100 focus:border-brand-500 appearance-none"
               >
                 {timeOptions.map((t) => (
                   <option key={t} value={t}>
@@ -181,35 +187,35 @@ export default function ReserveParkingPage() {
         </div>
 
         {combinedIso && !validationError && (
-          <p className="text-sm text-slate-600">
-            <span className="font-medium">Selected:</span>{' '}
+          <p className="text-sm text-ink-700">
+            <span className="font-semibold">Selected:</span>{' '}
             {formatDateTime(combinedIso)}
           </p>
         )}
 
         {validationError && (
-          <div className="flex items-start gap-3 rounded-xl bg-danger-50 border border-danger-200 p-4">
-            <AlertTriangle className="h-5 w-5 text-danger-500 shrink-0 mt-0.5" />
+          <div className="flex items-start gap-3 rounded-2xl bg-danger-50 border border-danger-200 p-4">
+            <AlertTriangle className="h-5 w-5 text-danger-600 shrink-0 mt-0.5" />
             <p className="text-sm text-danger-700 font-medium">{validationError}</p>
           </div>
         )}
 
         {!validationError && availability && (
           <div
-            className={`rounded-xl border p-4 ${
+            className={`rounded-2xl border p-4 ${
               availability.ok
-                ? 'bg-emerald-50 border-emerald-200'
-                : 'bg-amber-50 border-amber-200'
+                ? 'bg-success-50 border-success-200'
+                : 'bg-warning-50 border-warning-100'
             }`}
           >
             {availability.ok ? (
               <div className="flex items-start gap-3">
-                <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
+                <CheckCircle2 className="h-5 w-5 text-success-600 shrink-0 mt-0.5" />
                 <div className="text-sm">
-                  <p className="font-semibold text-emerald-800">
+                  <p className="font-semibold text-success-700">
                     Spot available at this time
                   </p>
-                  <p className="text-emerald-700 mt-0.5">
+                  <p className="text-success-700 mt-0.5">
                     {availability.freeAtWindow} / {availability.totalSpaces} free ·{' '}
                     {availability.freePercent?.toFixed(0)}% availability
                   </p>
@@ -217,12 +223,12 @@ export default function ReserveParkingPage() {
               </div>
             ) : (
               <div className="flex items-start gap-3">
-                <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                <AlertTriangle className="h-5 w-5 text-warning-600 shrink-0 mt-0.5" />
                 <div className="text-sm">
-                  <p className="font-semibold text-amber-800">
+                  <p className="font-semibold text-warning-600">
                     Not enough availability
                   </p>
-                  <p className="text-amber-700 mt-0.5">
+                  <p className="text-warning-600 mt-0.5">
                     {availability.reason ||
                       `Only ${availability.freePercent?.toFixed(0)}% would be free — at least ${
                         availability.minFreePercent ?? MIN_FREE_PCT
@@ -248,7 +254,7 @@ export default function ReserveParkingPage() {
           <CalendarPlus className="h-5 w-5" />
           Confirm reservation
         </Button>
-      </div>
+      </Card>
 
       <AnimatePresence>
         {success && (
@@ -256,7 +262,7 @@ export default function ReserveParkingPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4"
+            className="fixed inset-0 z-50 bg-ink-900/60 backdrop-blur-md flex items-center justify-center p-4"
             onClick={() => setSuccess(null)}
           >
             <motion.div
@@ -265,38 +271,36 @@ export default function ReserveParkingPage() {
               exit={{ scale: 0.92, y: 20 }}
               transition={{ type: 'spring', stiffness: 220, damping: 22 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-md bg-white rounded-3xl p-6 md:p-8 shadow-2xl"
+              className="w-full max-w-md bg-surface-0 rounded-3xl p-6 md:p-8 shadow-popover"
             >
               <div className="flex items-center justify-center mb-5">
-                <div className="h-14 w-14 rounded-2xl bg-success-500 flex items-center justify-center shadow-lg">
+                <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-success-500 to-success-700 flex items-center justify-center shadow-[0_8px_24px_-8px_rgba(16,185,129,0.55)]">
                   <CheckCircle2 className="h-7 w-7 text-white" />
                 </div>
               </div>
-              <h2 className="text-2xl font-bold text-slate-900 text-center mb-1">
-                Reservation confirmed!
+              <h2 className="font-display text-2xl font-bold text-ink-900 text-center mb-1">
+                Reservation confirmed
               </h2>
-              <p className="text-sm text-slate-500 text-center mb-6">
+              <p className="text-sm text-ink-500 text-center mb-6">
                 Save this code — you'll need it on arrival.
               </p>
 
               <CodeDisplay code={success.confirmation_code} />
 
-              <div className="mt-5 rounded-xl bg-slate-50 p-4 text-sm space-y-1.5">
+              <div className="mt-5 rounded-2xl bg-surface-50 border border-surface-200 p-4 text-sm space-y-2">
                 <div className="flex justify-between">
-                  <span className="text-slate-500">Parking space</span>
-                  <span className="font-semibold text-slate-900">
-                    #{success.space_number}
-                  </span>
+                  <span className="text-ink-500">Parking space</span>
+                  <Badge tone="brand" size="md">#{success.space_number}</Badge>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-500">Arrival time</span>
-                  <span className="font-semibold text-slate-900">
+                  <span className="text-ink-500">Arrival time</span>
+                  <span className="font-semibold text-ink-900">
                     {formatDateTime(success.reservation_start)}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-500">Until</span>
-                  <span className="font-semibold text-slate-900">
+                  <span className="text-ink-500">Until</span>
+                  <span className="font-semibold text-ink-900">
                     {formatDateTime(success.reservation_end)}
                   </span>
                 </div>

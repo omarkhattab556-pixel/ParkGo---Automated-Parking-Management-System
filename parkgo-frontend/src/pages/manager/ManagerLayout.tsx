@@ -6,6 +6,7 @@ export default function ManagerLayout() {
     <DashboardLayout
       items={managerNavItems}
       brandColor="from-success-500 to-success-700"
+      roleLabel="Manager"
     />
   );
 }

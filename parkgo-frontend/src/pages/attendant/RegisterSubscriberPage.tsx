@@ -17,6 +17,9 @@ import toast from 'react-hot-toast';
 
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Card } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
+import { PageHeader } from '@/components/ui/PageHeader';
 import {
   subscriberRegistrationSchema,
   type SubscriberRegistrationInput,
@@ -78,25 +81,21 @@ export default function RegisterSubscriberPage() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      <header className="flex items-center gap-3">
-        <div className="h-11 w-11 rounded-xl bg-primary-50 flex items-center justify-center">
-          <UserPlus className="h-5 w-5 text-primary-600" />
-        </div>
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
+      <PageHeader
+        eyebrow="New account"
+        title={
+          <span className="inline-flex items-center gap-3">
+            <span className="h-10 w-10 rounded-2xl bg-accent-50 border border-accent-100 flex items-center justify-center text-accent-600">
+              <UserPlus className="h-5 w-5" />
+            </span>
             Register subscriber
-          </h1>
-          <p className="text-slate-500 text-sm">
-            Create a new subscriber account · a welcome email will be sent
-          </p>
-        </div>
-      </header>
+          </span>
+        }
+        description="Create a new subscriber account · a welcome email will be sent"
+      />
 
-      <form
-        onSubmit={handleSubmit(onSubmit)}
-        className="rounded-3xl bg-white border border-slate-100 p-6 md:p-8 shadow-[0_2px_8px_rgba(0,0,0,0.04)] space-y-5"
-        noValidate
-      >
+      <Card variant="default" padding="xl">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input
             label="First name"
@@ -157,18 +156,19 @@ export default function RegisterSubscriberPage() {
             onClick={() =>
               setValue('password', genPassword(), { shouldValidate: true })
             }
-            className="mt-1.5 inline-flex items-center gap-1.5 text-xs font-medium text-primary-600 hover:text-primary-700"
+            className="mt-1.5 inline-flex items-center gap-1.5 text-xs font-semibold text-brand-600 hover:text-brand-700"
           >
             <Dice5 className="h-3.5 w-3.5" />
             Generate strong password
           </button>
         </div>
 
-        <Button type="submit" size="lg" fullWidth loading={create.isPending}>
-          <UserPlus className="h-5 w-5" />
-          Create subscriber
-        </Button>
-      </form>
+          <Button type="submit" size="lg" fullWidth loading={create.isPending}>
+            <UserPlus className="h-5 w-5" />
+            Create subscriber
+          </Button>
+        </form>
+      </Card>
 
       <AnimatePresence>
         {success && (
@@ -176,7 +176,7 @@ export default function RegisterSubscriberPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4"
+            className="fixed inset-0 z-50 bg-ink-900/60 backdrop-blur-md flex items-center justify-center p-4"
             onClick={() => setSuccess(null)}
           >
             <motion.div
@@ -185,42 +185,40 @@ export default function RegisterSubscriberPage() {
               exit={{ scale: 0.92, y: 20 }}
               transition={{ type: 'spring', stiffness: 220, damping: 22 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-md rounded-3xl bg-white p-6 md:p-8 shadow-2xl"
+              className="w-full max-w-md rounded-3xl bg-surface-0 p-6 md:p-8 shadow-popover"
             >
               <div className="flex items-center justify-center mb-4">
-                <div className="h-14 w-14 rounded-2xl bg-success-500 flex items-center justify-center shadow-lg">
+                <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-success-500 to-success-700 flex items-center justify-center shadow-[0_8px_24px_-8px_rgba(16,185,129,0.55)]">
                   <CheckCircle2 className="h-7 w-7 text-white" />
                 </div>
               </div>
-              <h2 className="text-2xl font-bold text-slate-900 text-center">
-                Subscriber created!
+              <h2 className="font-display text-2xl font-bold text-ink-900 text-center">
+                Subscriber created
               </h2>
-              <p className="text-sm text-slate-500 text-center mt-1">
+              <p className="text-sm text-ink-500 text-center mt-1">
                 Credentials emailed to {success.user.email}
               </p>
 
-              <div className="mt-6 rounded-2xl bg-slate-50 p-4 text-sm space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Subscriber #</span>
-                  <span className="font-mono font-semibold text-slate-900">
-                    {success.user.id}
-                  </span>
+              <div className="mt-6 rounded-2xl bg-surface-50 border border-surface-200 p-4 text-sm space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-ink-500">Subscriber #</span>
+                  <Badge tone="brand" size="md">#{success.user.id}</Badge>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-500">Name</span>
-                  <span className="font-semibold text-slate-900">
+                  <span className="text-ink-500">Name</span>
+                  <span className="font-semibold text-ink-900">
                     {success.user.first_name} {success.user.last_name}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-500">Email</span>
-                  <span className="font-semibold text-slate-900 truncate ml-2">
+                  <span className="text-ink-500">Email</span>
+                  <span className="font-semibold text-ink-900 truncate ml-2">
                     {success.user.email}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-slate-500">Password</span>
-                  <code className="font-mono text-xs bg-white border border-slate-200 px-2 py-1 rounded">
+                  <span className="text-ink-500">Password</span>
+                  <code className="font-mono text-xs bg-surface-0 border border-surface-200 px-2 py-1 rounded-lg text-ink-800">
                     {success.password}
                   </code>
                 </div>

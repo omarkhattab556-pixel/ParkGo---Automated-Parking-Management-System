@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { Settings, Cog, Check, CircleX } from 'lucide-react';
+import { Settings, Cog, CircleX } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { facilityApi } from '@/api/facility.api';
 import { CardSkeleton, StatStripSkeleton } from '@/components/common/Skeleton';
+import { Card } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
+import { PageHeader, SectionHeader } from '@/components/ui/PageHeader';
 import { BUSINESS_RULES } from '@/utils/constants';
 
 function InstallerCard({
@@ -38,10 +41,10 @@ function InstallerCard({
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       className={cn(
-        'rounded-3xl border p-5 shadow-sm transition-colors',
+        'rounded-3xl border p-5 shadow-card transition-colors',
         isFree
-          ? 'bg-emerald-50/60 border-emerald-200'
-          : 'bg-amber-50/60 border-amber-200'
+          ? 'bg-gradient-to-br from-success-50 to-surface-0 border-success-200'
+          : 'bg-gradient-to-br from-warning-50 to-surface-0 border-warning-100'
       )}
     >
       <div className="flex items-start justify-between mb-3">
@@ -49,48 +52,40 @@ function InstallerCard({
           <motion.div
             animate={isFree ? { rotate: 0 } : { rotate: 360 }}
             transition={
-              isFree ? { duration: 0 } : { duration: 2, repeat: Infinity, ease: 'linear' }
+              isFree ? { duration: 0 } : { duration: 2.4, repeat: Infinity, ease: 'linear' }
             }
             className={cn(
-              'h-11 w-11 rounded-xl flex items-center justify-center shadow',
+              'h-12 w-12 rounded-2xl flex items-center justify-center shadow-soft',
               isFree
-                ? 'bg-gradient-to-br from-emerald-400 to-emerald-600'
-                : 'bg-gradient-to-br from-amber-400 to-amber-600'
+                ? 'bg-gradient-to-br from-success-500 to-success-700'
+                : 'bg-gradient-to-br from-warning-400 to-warning-600'
             )}
           >
             <Cog className="h-5 w-5 text-white" />
           </motion.div>
           <div>
-            <p className="font-bold text-slate-900">{name}</p>
-            <p className="text-xs text-slate-500">
+            <p className="font-display font-bold text-ink-900">{name}</p>
+            <p className="text-xs text-ink-500">
               {isFree ? 'Ready' : 'Operating'}
             </p>
           </div>
         </div>
-        <span
-          className={cn(
-            'inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full',
-            isFree
-              ? 'bg-emerald-100 text-emerald-700'
-              : 'bg-amber-100 text-amber-700'
-          )}
-        >
-          {isFree ? <Check className="h-3 w-3" /> : <Cog className="h-3 w-3" />}
+        <Badge tone={isFree ? 'success' : 'warning'} dot size="md">
           {isFree ? 'Free' : 'Busy'}
-        </span>
+        </Badge>
       </div>
 
       {!isFree && (
         <div className="space-y-1.5">
-          <div className="flex justify-between text-xs text-amber-700">
-            <span>Operation in progress</span>
-            <span className="font-semibold tabular-nums">
+          <div className="flex justify-between text-xs text-warning-600">
+            <span className="font-medium">Operation in progress</span>
+            <span className="font-bold tabular">
               {Math.ceil(remainingMs / 1000)}s left
             </span>
           </div>
-          <div className="h-2 bg-amber-100 rounded-full overflow-hidden">
+          <div className="h-2 bg-warning-100 rounded-full overflow-hidden">
             <div
-              className="h-full bg-gradient-to-r from-amber-400 to-amber-600 transition-all"
+              className="h-full bg-gradient-to-r from-warning-400 to-warning-600 transition-all"
               style={{ width: `${progress}%` }}
             />
           </div>
@@ -109,22 +104,19 @@ export default function FacilityStatusPage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex items-center gap-3">
-        <div className="h-11 w-11 rounded-xl bg-purple-50 flex items-center justify-center">
-          <Settings className="h-5 w-5 text-purple-600" />
-        </div>
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
-            Facility status
-          </h1>
-          <p className="text-slate-500 text-sm flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 text-emerald-700">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              Live · refreshes every 3s
+      <PageHeader
+        eyebrow="Operations"
+        title={
+          <span className="inline-flex items-center gap-3">
+            <span className="h-10 w-10 rounded-2xl bg-brand-50 border border-brand-100 flex items-center justify-center text-brand-600">
+              <Settings className="h-5 w-5" />
             </span>
-          </p>
-        </div>
-      </header>
+            Facility status
+          </span>
+        }
+        description="Refreshes every 3 seconds"
+        actions={<Badge tone="success" dot size="lg">Live</Badge>}
+      />
 
       {isLoading && (
         <>
@@ -140,51 +132,49 @@ export default function FacilityStatusPage() {
       {data && (
         <>
           <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div className="rounded-2xl bg-white border border-slate-100 px-5 py-4">
-              <p className="text-xs uppercase tracking-wider text-slate-500 font-medium">
+            <Card padding="md" className="text-center">
+              <p className="text-[10px] uppercase tracking-wider text-ink-500 font-semibold">
                 Installers
               </p>
-              <p className="text-2xl font-bold text-slate-900 tabular-nums">
+              <p className="font-display text-2xl font-bold text-ink-900 tabular mt-1">
                 {data.installers.total}
               </p>
-            </div>
-            <div className="rounded-2xl bg-emerald-50 border border-emerald-200 px-5 py-4">
-              <p className="text-xs uppercase tracking-wider text-emerald-700 font-medium">
+            </Card>
+            <Card padding="md" className="text-center bg-gradient-to-br from-success-50 to-surface-0 border-success-200">
+              <p className="text-[10px] uppercase tracking-wider text-success-700 font-semibold">
                 Free
               </p>
-              <p className="text-2xl font-bold text-emerald-800 tabular-nums">
+              <p className="font-display text-2xl font-bold text-success-700 tabular mt-1">
                 {data.installers.free}
               </p>
-            </div>
-            <div className="rounded-2xl bg-amber-50 border border-amber-200 px-5 py-4">
-              <p className="text-xs uppercase tracking-wider text-amber-700 font-medium">
+            </Card>
+            <Card padding="md" className="text-center bg-gradient-to-br from-warning-50 to-surface-0 border-warning-100">
+              <p className="text-[10px] uppercase tracking-wider text-warning-600 font-semibold">
                 Busy
               </p>
-              <p className="text-2xl font-bold text-amber-800 tabular-nums">
+              <p className="font-display text-2xl font-bold text-warning-600 tabular mt-1">
                 {data.installers.busy}
               </p>
-            </div>
-            <div className="rounded-2xl bg-white border border-slate-100 px-5 py-4">
-              <p className="text-xs uppercase tracking-wider text-slate-500 font-medium">
+            </Card>
+            <Card padding="md" className="text-center">
+              <p className="text-[10px] uppercase tracking-wider text-ink-500 font-semibold">
                 Spaces
               </p>
-              <p className="text-2xl font-bold text-slate-900 tabular-nums">
+              <p className="font-display text-2xl font-bold text-ink-900 tabular mt-1">
                 {data.spaces.free} / {data.spaces.total}
               </p>
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="text-xs text-ink-500 mt-1">
                 {data.spaces.occupied} occupied
               </p>
-            </div>
+            </Card>
           </section>
 
           <section>
-            <h2 className="text-sm font-semibold text-slate-900 mb-3">
-              Installers
-            </h2>
+            <SectionHeader title="Installers" description="Robotic shuttles" />
             {data.installers.installers.length === 0 ? (
-              <div className="rounded-2xl bg-white border border-dashed border-slate-200 p-8 text-center">
-                <CircleX className="h-8 w-8 text-slate-300 mx-auto mb-2" />
-                <p className="text-sm text-slate-500">
+              <div className="rounded-3xl bg-surface-0 border border-dashed border-surface-300 p-8 text-center">
+                <CircleX className="h-8 w-8 text-ink-300 mx-auto mb-2" />
+                <p className="text-sm text-ink-500">
                   No installers configured. The manager can add them.
                 </p>
               </div>

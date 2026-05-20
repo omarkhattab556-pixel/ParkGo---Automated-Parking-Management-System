@@ -8,7 +8,7 @@ interface Props {
   title: string;
   subtitle: string;
   icon: LucideIcon;
-  accent: string; // tailwind gradient classes, e.g. "from-primary-500 to-primary-700"
+  accent: string;
 }
 
 export function PlaceholderDashboard({ title, subtitle, icon: Icon, accent }: Props) {
@@ -16,7 +16,7 @@ export function PlaceholderDashboard({ title, subtitle, icon: Icon, accent }: Pr
   const logout = useLogout();
 
   return (
-    <div className="min-h-screen bg-surface-50 p-6 md:p-10">
+    <div className="min-h-screen bg-aurora-soft p-6 md:p-10">
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
@@ -25,13 +25,15 @@ export function PlaceholderDashboard({ title, subtitle, icon: Icon, accent }: Pr
         <header className="flex items-center justify-between mb-10">
           <div className="flex items-center gap-4">
             <div
-              className={`h-14 w-14 rounded-2xl bg-gradient-to-br ${accent} flex items-center justify-center shadow-lg`}
+              className={`h-14 w-14 rounded-2xl bg-gradient-to-br ${accent} flex items-center justify-center shadow-elevated`}
             >
               <Icon className="h-7 w-7 text-white" strokeWidth={2.2} />
             </div>
             <div>
-              <p className="text-sm text-slate-500">{subtitle}</p>
-              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+              <p className="text-xs uppercase tracking-[0.12em] font-semibold text-ink-500">
+                {subtitle}
+              </p>
+              <h1 className="font-display text-2xl font-bold text-ink-900 tracking-tight">
                 {title}
               </h1>
             </div>
@@ -40,17 +42,14 @@ export function PlaceholderDashboard({ title, subtitle, icon: Icon, accent }: Pr
           <div className="flex items-center gap-3">
             {user && (
               <div className="text-right hidden sm:block">
-                <p className="text-sm font-medium text-slate-900">
+                <p className="text-sm font-semibold text-ink-900">
                   {user.first_name} {user.last_name}
                 </p>
-                <p className="text-xs text-slate-500 capitalize">
-                  {user.user_type}
-                </p>
+                <p className="text-xs text-ink-500 capitalize">{user.user_type}</p>
               </div>
             )}
             <Button
               variant="secondary"
-              size="md"
               onClick={() => logout.mutate()}
               loading={logout.isPending}
             >
@@ -60,19 +59,19 @@ export function PlaceholderDashboard({ title, subtitle, icon: Icon, accent }: Pr
           </div>
         </header>
 
-        <div className="rounded-3xl bg-white border border-slate-100 p-12 text-center shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
+        <div className="rounded-3xl bg-surface-0 border border-surface-200 p-12 text-center shadow-card">
           <motion.div
             initial={{ scale: 0.9 }}
             animate={{ scale: 1 }}
             transition={{ type: 'spring', stiffness: 180 }}
-            className={`mx-auto h-20 w-20 rounded-3xl bg-gradient-to-br ${accent} flex items-center justify-center shadow-xl mb-6`}
+            className={`mx-auto h-20 w-20 rounded-3xl bg-gradient-to-br ${accent} flex items-center justify-center shadow-elevated mb-6`}
           >
             <Icon className="h-10 w-10 text-white" strokeWidth={2.2} />
           </motion.div>
-          <h2 className="text-3xl font-bold text-slate-900 mb-2">
+          <h2 className="font-display text-3xl font-bold text-ink-900 mb-2">
             Phase 1 & 2 complete
           </h2>
-          <p className="text-slate-500 max-w-md mx-auto">
+          <p className="text-ink-500 max-w-md mx-auto">
             Authentication is wired up and you reached this {user?.user_type}{' '}
             area. The full module will be built in upcoming phases.
           </p>

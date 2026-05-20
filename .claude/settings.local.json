@@ -14,7 +14,14 @@
       "Bash(curl -s -X POST http://localhost:5000/api/subscribers -H \"Content-Type: application/json\" -d '{}')",
       "Bash(curl -s http://localhost:5000/api/subscribers/1 -H \"Authorization: Bearer x\")",
       "Bash(curl -s http://localhost:5000/api/facility/hourly -H \"Authorization: Bearer x\")",
-      "Bash(curl -s -X POST http://localhost:5000/api/facility/maintenance -H \"Authorization: Bearer x\")"
+      "Bash(curl -s -X POST http://localhost:5000/api/facility/maintenance -H \"Authorization: Bearer x\")",
+      "Bash(where python *)",
+      "Bash(ls -la \"C:\\\\Users\\\\omar\\\\.claude\\\\plugins\\\\cache\\\\ui-ux-pro-max-skill\\\\ui-ux-pro-max\\\\2.5.0\\\\.claude\\\\skills\\\\ui-ux-pro-max\\\\scripts\\\\\")",
+      "Read(//c/Users/omar/.claude/plugins/cache/ui-ux-pro-max-skill/ui-ux-pro-max/2.5.0/.claude/skills/ui-ux-pro-max/**)",
+      "Bash(npx vite *)",
+      "Bash(echo \"EXIT=$?\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:5174/)",
+      "Bash(curl -s http://localhost:5174/)"
     ]
   }
 }

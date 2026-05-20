@@ -7,6 +7,9 @@ import { useMyParkingHistory } from '@/hooks/useParking';
 import { formatCode, formatDateTime, formatDuration } from '@/utils/formatters';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
+import { Card } from '@/components/ui/Card';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 const PAGE_SIZE = 15;
 
@@ -31,19 +34,18 @@ export default function ParkingHistoryPage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex items-center gap-3">
-        <div className="h-11 w-11 rounded-xl bg-primary-50 flex items-center justify-center">
-          <History className="h-5 w-5 text-primary-600" />
-        </div>
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
+      <PageHeader
+        eyebrow="History"
+        title={
+          <span className="inline-flex items-center gap-3">
+            <span className="h-10 w-10 rounded-2xl bg-brand-50 border border-brand-100 flex items-center justify-center text-brand-600">
+              <History className="h-5 w-5" />
+            </span>
             Parking history
-          </h1>
-          <p className="text-slate-500 text-sm">
-            All your past and current sessions
-          </p>
-        </div>
-      </header>
+          </span>
+        }
+        description="All your past and current sessions"
+      />
 
       {!isLoading && data && data.length > 0 && (
         <div className="flex flex-col sm:flex-row gap-3 sm:items-end">
@@ -113,20 +115,20 @@ export default function ParkingHistoryPage() {
 
       {!isLoading && pageItems.length > 0 && (
         <>
-          <div className="rounded-2xl bg-white border border-slate-100 overflow-hidden">
+          <Card padding="none" className="overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
+                <thead className="bg-surface-50 text-ink-500 text-xs uppercase tracking-wider border-b border-surface-200">
                   <tr>
                     <th className="px-4 py-3 text-left font-semibold">Code</th>
                     <th className="px-4 py-3 text-left font-semibold">Space</th>
                     <th className="px-4 py-3 text-left font-semibold">Parked</th>
                     <th className="px-4 py-3 text-left font-semibold">Retrieved</th>
                     <th className="px-4 py-3 text-left font-semibold">Duration</th>
-                    <th className="px-4 py-3 text-left font-semibold">Extensions</th>
+                    <th className="px-4 py-3 text-left font-semibold">Ext.</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-surface-200">
                   {pageItems.map((p) => {
                     const start = new Date(p.parking_date).getTime();
                     const end = p.retrieval_time
@@ -134,30 +136,27 @@ export default function ParkingHistoryPage() {
                       : Date.now();
                     const minutes = Math.floor((end - start) / 60000);
                     return (
-                      <tr key={p.parking_code} className="hover:bg-slate-50">
-                        <td className="px-4 py-3 font-mono font-semibold text-slate-900">
+                      <tr key={p.parking_code} className="hover:bg-surface-50 transition-colors">
+                        <td className="px-4 py-3 font-mono font-semibold text-ink-900 tabular">
                           {formatCode(p.confirmation_code)}
                         </td>
-                        <td className="px-4 py-3 text-slate-700">
-                          #{p.parking_space}
+                        <td className="px-4 py-3 text-ink-700">
+                          <Badge tone="neutral" size="md">#{p.parking_space}</Badge>
                         </td>
-                        <td className="px-4 py-3 text-slate-600">
+                        <td className="px-4 py-3 text-ink-600">
                           {formatDateTime(p.parking_date)}
                         </td>
-                        <td className="px-4 py-3 text-slate-600">
+                        <td className="px-4 py-3 text-ink-600">
                           {p.retrieval_time ? (
                             formatDateTime(p.retrieval_time)
                           ) : (
-                            <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
-                              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                              Active
-                            </span>
+                            <Badge tone="success" dot size="md">Active</Badge>
                           )}
                         </td>
-                        <td className="px-4 py-3 text-slate-700">
+                        <td className="px-4 py-3 text-ink-700 tabular">
                           {formatDuration(minutes)}
                         </td>
-                        <td className="px-4 py-3 text-slate-700">
+                        <td className="px-4 py-3 text-ink-700 tabular">
                           {p.extension_count || 0}
                         </td>
                       </tr>
@@ -166,16 +165,15 @@ export default function ParkingHistoryPage() {
                 </tbody>
               </table>
             </div>
-          </div>
+          </Card>
 
           {pageCount > 1 && (
             <div className="flex items-center justify-between">
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-ink-500">
                 Showing {(page - 1) * PAGE_SIZE + 1}–
-                {Math.min(page * PAGE_SIZE, filtered.length)} of{' '}
-                {filtered.length}
+                {Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length}
               </p>
-              <div className="flex gap-2">
+              <div className="flex gap-2 items-center">
                 <Button
                   variant="secondary"
                   size="sm"
@@ -185,7 +183,7 @@ export default function ParkingHistoryPage() {
                   <ChevronLeft className="h-4 w-4" />
                   Prev
                 </Button>
-                <span className="inline-flex items-center px-3 text-sm font-medium text-slate-700">
+                <span className="inline-flex items-center px-3 text-sm font-semibold text-ink-700 tabular">
                   {page} / {pageCount}
                 </span>
                 <Button

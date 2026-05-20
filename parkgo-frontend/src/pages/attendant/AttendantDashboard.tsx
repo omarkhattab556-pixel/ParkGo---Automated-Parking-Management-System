@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { motion } from 'framer-motion';
 import {
   UserPlus,
   Users,
@@ -8,6 +7,9 @@ import {
   Gauge,
   Wrench,
   Settings,
+  ArrowRight,
+  Activity,
+  Sparkles,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -16,78 +18,63 @@ import { useFacilityLoad } from '@/hooks/useParking';
 import { subscriberApi } from '@/api/subscriber.api';
 import { parkingApi } from '@/api/parking.api';
 
-function StatCard({
-  label,
-  value,
-  sub,
-}: {
-  label: string;
-  value: string;
-  sub?: string;
-}) {
-  return (
-    <div className="rounded-2xl bg-white border border-slate-100 px-5 py-4 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
-      <p className="text-xs uppercase tracking-wider text-slate-500 font-medium">
-        {label}
-      </p>
-      <p className="text-2xl md:text-3xl font-bold text-slate-900 mt-1 tabular-nums">
-        {value}
-      </p>
-      {sub && <p className="text-xs text-slate-500 mt-1">{sub}</p>}
-    </div>
-  );
-}
+import { PageHeader, SectionHeader } from '@/components/ui/PageHeader';
+import { BentoGrid, BentoCard } from '@/components/ui/Bento';
+import { StatTile } from '@/components/ui/StatTile';
+import { Badge } from '@/components/ui/Badge';
+import { GlowOrbs } from '@/components/ui/GlowOrbs';
+import { RadialGauge } from '@/components/charts/RadialGauge';
 
 interface Action {
   to: string;
   title: string;
   description: string;
   icon: LucideIcon;
-  gradient: string;
+  tone: 'brand' | 'accent' | 'success' | 'danger';
 }
 
 const actions: Action[] = [
   {
     to: '/attendant/register',
-    title: 'Register Subscriber',
-    description: 'Add a new subscriber to the system',
+    title: 'Register subscriber',
+    description: 'Add a new subscriber',
     icon: UserPlus,
-    gradient: 'from-primary-500 to-primary-700',
+    tone: 'brand',
   },
   {
     to: '/attendant/active-parkings',
-    title: 'Active Parkings',
-    description: 'Real-time view of vehicles currently parked',
+    title: 'Active parkings',
+    description: 'Vehicles currently parked',
     icon: Car,
-    gradient: 'from-success-500 to-success-700',
+    tone: 'success',
   },
   {
     to: '/attendant/load-level',
-    title: 'Load Level',
-    description: 'Live occupancy gauge and 24h timeline',
+    title: 'Load level',
+    description: 'Live gauge & 24h timeline',
     icon: Gauge,
-    gradient: 'from-accent-500 to-accent-600',
+    tone: 'accent',
   },
   {
     to: '/attendant/facility-status',
-    title: 'Facility Status',
-    description: 'Installer health and space inventory',
+    title: 'Facility status',
+    description: 'Installers & inventory',
     icon: Settings,
-    gradient: 'from-purple-500 to-fuchsia-600',
+    tone: 'brand',
   },
   {
     to: '/attendant/subscribers',
-    title: 'All Subscribers',
-    description: 'Search and view subscriber records',
+    title: 'All subscribers',
+    description: 'Search & view records',
     icon: Users,
-    gradient: 'from-cyan-500 to-blue-600',
+    tone: 'accent',
   },
   {
     to: '/attendant/maintenance',
     title: 'Maintenance',
-    description: 'Call a technician for facility issues',
+    description: 'Call a technician',
     icon: Wrench,
-    gradient: 'from-rose-500 to-red-600',
+    tone: 'danger',
   },
 ];
 
@@ -113,74 +100,200 @@ export default function AttendantDashboard() {
     0;
   const inactiveSubscribers = totalSubscribers - activeSubscribers;
   const parkedNow = active.data?.length ?? 0;
+  const occupancyPercent = load.data?.occupancy_percent ?? 0;
 
   return (
-    <div className="space-y-8">
-      <header>
-        <p className="text-sm text-slate-500">Attendant console</p>
-        <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
-          {user?.first_name} {user?.last_name}
-        </h1>
-      </header>
-
-      <section className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-        <StatCard
-          label="Total Subscribers"
-          value={subscribers.isLoading ? '—' : String(totalSubscribers)}
-          sub={
-            totalSubscribers > 0 ? `${inactiveSubscribers} inactive` : undefined
-          }
-        />
-        <StatCard
-          label="Active Subscribers"
-          value={subscribers.isLoading ? '—' : String(activeSubscribers)}
-          sub="status = active"
-        />
-        <StatCard
-          label="Parked Now"
-          value={active.isLoading ? '—' : String(parkedNow)}
-          sub={parkedNow === 1 ? 'vehicle' : 'vehicles'}
-        />
-        <StatCard
-          label="Free Spots"
-          value={
-            load.isLoading
-              ? '—'
-              : `${load.data?.free ?? 0} / ${load.data?.total ?? 0}`
-          }
-          sub={
-            load.data
-              ? `${load.data.occupancy_percent.toFixed(0)}% occupied`
-              : undefined
-          }
-        />
-      </section>
-
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
-        {actions.map((action, i) => (
-          <motion.div
-            key={action.to}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.04 }}
-          >
-            <Link to={action.to} className="block group">
-              <div
-                className={`relative overflow-hidden rounded-3xl bg-gradient-to-br ${action.gradient} p-6 text-white shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all min-h-[170px] flex flex-col`}
-              >
-                <div className="absolute -top-10 -right-10 h-32 w-32 rounded-full bg-white/10 group-hover:scale-150 transition-transform duration-500" />
-                <action.icon className="h-9 w-9 mb-3 relative z-10" strokeWidth={2.2} />
-                <h3 className="text-lg md:text-xl font-bold mb-1 relative z-10 tracking-tight">
-                  {action.title}
-                </h3>
-                <p className="text-sm text-white/85 relative z-10 mt-auto">
-                  {action.description}
-                </p>
-              </div>
+    <div className="space-y-6 md:space-y-8">
+      <PageHeader
+        eyebrow="Attendant console"
+        title={
+          <>
+            On shift, <span className="text-gradient-brand">{user?.first_name}</span>
+          </>
+        }
+        description="Daily operations — registrations, active vehicles and facility load."
+        actions={
+          <>
+            <Badge tone="accent" dot size="lg">
+              Live
+            </Badge>
+            <Link
+              to="/attendant/register"
+              className="inline-flex items-center gap-2 h-11 px-5 rounded-2xl bg-gradient-to-br from-accent-500 to-accent-700 text-white font-semibold text-sm shadow-[0_8px_24px_-8px_rgba(249,115,22,0.55)] hover:-translate-y-0.5 transition-transform"
+            >
+              <UserPlus className="h-4 w-4" />
+              New subscriber
             </Link>
-          </motion.div>
-        ))}
-      </section>
+          </>
+        }
+      />
+
+      <BentoGrid>
+        {/* Live load gauge */}
+        <BentoCard
+          span="col-span-2 md:col-span-3 lg:col-span-4"
+          tone="ink"
+          rowSpan="row-span-2"
+          delay={0}
+          className="relative overflow-hidden min-h-[420px] flex flex-col items-center"
+        >
+          <GlowOrbs variant="accent" />
+          <div className="relative w-full flex items-center justify-between mb-2">
+            <Badge tone="ink" size="md" className="bg-white/10 text-white border-white/15">
+              Live load
+            </Badge>
+            <Activity className="h-4 w-4 text-white/50" />
+          </div>
+          <h3 className="relative font-display text-lg font-semibold text-white tracking-tight self-start">
+            Facility occupancy
+          </h3>
+          <p className="relative text-xs text-white/60 mt-0.5 self-start">
+            Updates every 10 seconds
+          </p>
+
+          <div className="relative flex-1 flex items-center justify-center my-4">
+            <RadialGauge
+              value={occupancyPercent}
+              size={210}
+              thickness={16}
+              tone={occupancyPercent > 80 ? 'danger' : occupancyPercent > 60 ? 'accent' : 'success'}
+              inverted
+              label="Occupied"
+              sublabel={`${load.data?.free ?? 0} free of ${load.data?.total ?? 0}`}
+            />
+          </div>
+
+          <div className="relative grid grid-cols-3 gap-2 w-full">
+            <DarkPill label="Free" value={load.data?.free ?? 0} tone="text-success-300" />
+            <DarkPill label="Occupied" value={load.data?.occupied ?? 0} tone="text-danger-300" />
+            <DarkPill label="Reserved" value={load.data?.reserved ?? 0} tone="text-warning-400" />
+          </div>
+        </BentoCard>
+
+        {/* KPI tiles */}
+        <BentoCard span="col-span-2 md:col-span-3 lg:col-span-4" delay={0.05}>
+          <StatTile
+            label="Parked now"
+            value={active.isLoading ? '—' : parkedNow}
+            hint={parkedNow === 1 ? 'vehicle' : 'vehicles'}
+            icon={Car}
+            iconTone="success"
+            loading={active.isLoading}
+          />
+        </BentoCard>
+        <BentoCard
+          span="col-span-2 md:col-span-3 lg:col-span-4"
+          tone="aurora"
+          delay={0.08}
+          className="relative overflow-hidden"
+        >
+          <GlowOrbs variant="brand" />
+          <div className="relative">
+            <StatTile
+              label="Active subscribers"
+              value={subscribers.isLoading ? '—' : activeSubscribers}
+              hint={`${inactiveSubscribers} inactive · ${totalSubscribers} total`}
+              icon={Users}
+              variant="dark"
+              loading={subscribers.isLoading}
+            />
+          </div>
+        </BentoCard>
+
+        <BentoCard span="col-span-2 md:col-span-3 lg:col-span-4" delay={0.1}>
+          <StatTile
+            label="Total subscribers"
+            value={subscribers.isLoading ? '—' : totalSubscribers}
+            hint="across all statuses"
+            icon={Users}
+            iconTone="brand"
+            loading={subscribers.isLoading}
+          />
+        </BentoCard>
+        <BentoCard span="col-span-2 md:col-span-3 lg:col-span-4" delay={0.12}>
+          <StatTile
+            label="Free spots"
+            value={
+              load.isLoading
+                ? '—'
+                : `${load.data?.free ?? 0} / ${load.data?.total ?? 0}`
+            }
+            hint={`${occupancyPercent.toFixed(0)}% occupied`}
+            icon={Gauge}
+            iconTone="info"
+            loading={load.isLoading}
+          />
+        </BentoCard>
+
+        {/* Quick actions banner */}
+        <BentoCard
+          span="col-span-2 md:col-span-6 lg:col-span-12"
+          tone="glass"
+          delay={0.14}
+        >
+          <SectionHeader
+            title="Quick actions"
+            description="Most-used controls on your daily shift"
+            actions={
+              <Badge tone="brand" size="md">
+                <Sparkles className="h-3 w-3" /> {actions.length} tools
+              </Badge>
+            }
+          />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-2">
+            {actions.map((a, i) => (
+              <Link
+                key={a.to}
+                to={a.to}
+                className="group relative overflow-hidden rounded-2xl p-4 border border-surface-200 bg-surface-0 hover:bg-surface-50 transition-all hover:-translate-y-0.5 hover:shadow-soft no-tap-highlight"
+                style={{ animation: `fade-in-up 0.4s ${i * 0.04}s both` }}
+              >
+                <div className="flex items-start justify-between">
+                  <span
+                    className={`h-11 w-11 rounded-2xl flex items-center justify-center bg-gradient-to-br shadow-soft text-white ${
+                      a.tone === 'brand'
+                        ? 'from-brand-500 to-brand-700'
+                        : a.tone === 'accent'
+                        ? 'from-accent-500 to-accent-700'
+                        : a.tone === 'success'
+                        ? 'from-success-500 to-success-700'
+                        : 'from-danger-500 to-danger-700'
+                    }`}
+                  >
+                    <a.icon className="h-5 w-5" strokeWidth={2.3} />
+                  </span>
+                  <ArrowRight className="h-4 w-4 text-ink-400 group-hover:text-brand-600 group-hover:translate-x-0.5 transition-all" />
+                </div>
+                <h3 className="font-display text-base font-bold text-ink-900 mt-3 leading-tight">
+                  {a.title}
+                </h3>
+                <p className="text-xs text-ink-500 mt-1">{a.description}</p>
+              </Link>
+            ))}
+          </div>
+        </BentoCard>
+      </BentoGrid>
+    </div>
+  );
+}
+
+function DarkPill({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: number;
+  tone: string;
+}) {
+  return (
+    <div className="rounded-xl bg-white/5 border border-white/10 p-2 text-center">
+      <p className="text-[9px] uppercase font-semibold text-white/60 tracking-wider">
+        {label}
+      </p>
+      <p className={`font-display text-base font-bold tabular mt-0.5 ${tone}`}>
+        {value}
+      </p>
     </div>
   );
 }

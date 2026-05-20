@@ -1,11 +1,13 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Pencil, Phone, Hash, Lock } from 'lucide-react';
+import { Pencil, Phone, Hash, Lock, Info } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Card } from '@/components/ui/Card';
+import { PageHeader } from '@/components/ui/PageHeader';
 import { updateDetailsSchema, type UpdateDetailsInput } from '@/utils/validators';
 import { subscriberApi } from '@/api/subscriber.api';
 import { useAuthStore } from '@/store/authStore';
@@ -54,70 +56,72 @@ export default function UpdateDetailsPage() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      <header className="flex items-center gap-3">
-        <div className="h-11 w-11 rounded-xl bg-primary-50 flex items-center justify-center">
-          <Pencil className="h-5 w-5 text-primary-600" />
-        </div>
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
+      <PageHeader
+        eyebrow="Settings"
+        title={
+          <span className="inline-flex items-center gap-3">
+            <span className="h-10 w-10 rounded-2xl bg-brand-50 border border-brand-100 flex items-center justify-center text-brand-600">
+              <Pencil className="h-5 w-5" />
+            </span>
             Update details
-          </h1>
-          <p className="text-slate-500 text-sm">
-            Change your phone, license plate, or password
-          </p>
-        </div>
-      </header>
+          </span>
+        }
+        description="Change your phone, license plate, or password"
+      />
 
-      <form
-        onSubmit={handleSubmit(onSubmit)}
-        className="rounded-3xl bg-white border border-slate-100 p-6 md:p-8 shadow-[0_2px_8px_rgba(0,0,0,0.04)] space-y-5"
-        noValidate
-      >
-        <div className="rounded-xl bg-slate-50 p-3 text-xs text-slate-500">
-          You must enter your <strong>current password</strong> to change any
-          detail. Leave a field blank to keep its current value.
-        </div>
+      <Card variant="default" padding="xl">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
+          <div className="rounded-2xl bg-info-50 border border-info-100 p-4 flex items-start gap-3">
+            <Info className="h-5 w-5 text-info-600 shrink-0 mt-0.5" />
+            <div className="text-sm text-info-600">
+              <p className="font-semibold">Current password required</p>
+              <p className="mt-0.5">
+                Leave a field blank to keep its current value.
+              </p>
+            </div>
+          </div>
 
-        <Input
-          type="password"
-          label="Current password (required)"
-          autoComplete="current-password"
-          icon={<Lock className="h-4 w-4" />}
-          error={errors.current_password?.message}
-          {...register('current_password')}
-        />
+          <Input
+            type="password"
+            label="Current password (required)"
+            autoComplete="current-password"
+            icon={<Lock className="h-4 w-4" />}
+            error={errors.current_password?.message}
+            {...register('current_password')}
+          />
 
-        <Input
-          type="text"
-          label="License plate"
-          placeholder="12-345-67"
-          icon={<Hash className="h-4 w-4" />}
-          error={errors.license_plate?.message}
-          {...register('license_plate')}
-        />
+          <Input
+            type="text"
+            label="License plate"
+            placeholder="12-345-67"
+            icon={<Hash className="h-4 w-4" />}
+            error={errors.license_plate?.message}
+            {...register('license_plate')}
+          />
 
-        <Input
-          type="tel"
-          label="Phone number"
-          placeholder="0501234567"
-          icon={<Phone className="h-4 w-4" />}
-          error={errors.phone_number?.message}
-          {...register('phone_number')}
-        />
+          <Input
+            type="tel"
+            label="Phone number"
+            placeholder="0501234567"
+            icon={<Phone className="h-4 w-4" />}
+            error={errors.phone_number?.message}
+            {...register('phone_number')}
+          />
 
-        <Input
-          type="password"
-          label="New password (leave blank to keep current)"
-          autoComplete="new-password"
-          icon={<Lock className="h-4 w-4" />}
-          error={errors.new_password?.message}
-          {...register('new_password')}
-        />
+          <Input
+            type="password"
+            label="New password (leave blank to keep current)"
+            autoComplete="new-password"
+            icon={<Lock className="h-4 w-4" />}
+            error={errors.new_password?.message}
+            {...register('new_password')}
+          />
 
-        <Button type="submit" size="lg" fullWidth loading={update.isPending}>
-          Save changes
-        </Button>
-      </form>
+          <Button type="submit" size="lg" fullWidth loading={update.isPending}>
+            Save changes
+          </Button>
+        </form>
+      </Card>
     </div>
   );
 }

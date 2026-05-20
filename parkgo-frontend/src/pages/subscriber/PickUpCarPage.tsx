@@ -15,6 +15,8 @@ import toast from 'react-hot-toast';
 
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Card } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
 import { InstallerAnimation } from '@/components/common/InstallerAnimation';
 import {
   useExtendParking,
@@ -39,7 +41,6 @@ export default function PickUpCarPage() {
   const extend = useExtendParking();
   const lostCode = useLostCode();
 
-  // Auto-fill if subscriber has an active parking session
   useEffect(() => {
     if (activeParking.data && !codeInput) {
       setCodeInput(String(activeParking.data.confirmation_code));
@@ -79,21 +80,30 @@ export default function PickUpCarPage() {
     setResult(null);
   };
 
+  const stateColor = isOvertime
+    ? { bg: 'bg-danger-50 border-danger-200', text: 'text-danger-700', icon: 'text-danger-600' }
+    : remainingMinutes < 30
+    ? { bg: 'bg-warning-50 border-warning-100', text: 'text-warning-600', icon: 'text-warning-600' }
+    : { bg: 'bg-success-50 border-success-200', text: 'text-success-700', icon: 'text-success-600' };
+
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <header className="flex items-center gap-3">
         <Link
           to="/subscriber"
           aria-label="Back to dashboard"
-          className="h-9 w-9 inline-flex items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
+          className="h-10 w-10 inline-flex items-center justify-center rounded-2xl text-ink-600 hover:bg-surface-100"
         >
           <ArrowLeft className="h-5 w-5" />
         </Link>
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
+          <p className="text-[11px] uppercase tracking-[0.12em] font-semibold text-success-600">
+            Pick up
+          </p>
+          <h1 className="font-display text-2xl md:text-3xl font-bold text-ink-900 tracking-tight">
             Pick up your car
           </h1>
-          <p className="text-slate-500 text-sm">
+          <p className="text-ink-500 text-sm">
             Enter your code and our installer will retrieve it.
           </p>
         </div>
@@ -103,45 +113,15 @@ export default function PickUpCarPage() {
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          className={`rounded-2xl border p-5 ${
-            isOvertime
-              ? 'bg-danger-50 border-danger-200'
-              : remainingMinutes < 30
-              ? 'bg-amber-50 border-amber-200'
-              : 'bg-emerald-50 border-emerald-200'
-          }`}
+          className={`rounded-3xl border p-5 ${stateColor.bg}`}
         >
           <div className="flex items-start gap-3">
-            <Clock
-              className={`h-5 w-5 shrink-0 mt-0.5 ${
-                isOvertime
-                  ? 'text-danger-600'
-                  : remainingMinutes < 30
-                  ? 'text-amber-600'
-                  : 'text-emerald-600'
-              }`}
-            />
+            <Clock className={`h-5 w-5 shrink-0 mt-0.5 ${stateColor.icon}`} />
             <div className="flex-1">
-              <p
-                className={`font-semibold text-sm ${
-                  isOvertime
-                    ? 'text-danger-800'
-                    : remainingMinutes < 30
-                    ? 'text-amber-800'
-                    : 'text-emerald-800'
-                }`}
-              >
+              <p className={`font-semibold text-sm ${stateColor.text}`}>
                 Active parking · space #{active.parking_space}
               </p>
-              <p
-                className={`text-sm mt-0.5 ${
-                  isOvertime
-                    ? 'text-danger-700'
-                    : remainingMinutes < 30
-                    ? 'text-amber-700'
-                    : 'text-emerald-700'
-                }`}
-              >
+              <p className={`text-sm mt-0.5 ${stateColor.text}`}>
                 Parked {formatDateTime(active.parking_date)} ·{' '}
                 {isOvertime
                   ? `${formatDuration(overtimeMinutes)} over limit`
@@ -177,10 +157,10 @@ export default function PickUpCarPage() {
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-2xl bg-slate-50 border border-slate-200 p-5 flex items-start gap-3"
+          className="rounded-3xl bg-surface-100 border border-surface-200 p-5 flex items-start gap-3"
         >
-          <AlertTriangle className="h-5 w-5 text-slate-500 shrink-0 mt-0.5" />
-          <p className="text-sm text-slate-700">
+          <AlertTriangle className="h-5 w-5 text-ink-500 shrink-0 mt-0.5" />
+          <p className="text-sm text-ink-700">
             You don't have an active parking session right now. If you just
             dropped off, it may take a moment to appear.
           </p>
@@ -191,52 +171,56 @@ export default function PickUpCarPage() {
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-3xl bg-white border border-slate-100 p-6 md:p-8 shadow-[0_2px_8px_rgba(0,0,0,0.04)] space-y-5"
         >
-          <div className="flex items-center gap-3 mb-1">
-            <div className="h-10 w-10 rounded-xl bg-success-100 flex items-center justify-center">
-              <KeyRound className="h-5 w-5 text-success-700" />
+          <Card variant="default" padding="xl" className="space-y-5">
+            <div className="flex items-center gap-3 mb-1">
+              <div className="h-12 w-12 rounded-2xl bg-success-50 border border-success-100 flex items-center justify-center text-success-600">
+                <KeyRound className="h-5 w-5" />
+              </div>
+              <div>
+                <h2 className="font-display text-xl font-bold text-ink-900">
+                  Enter your code
+                </h2>
+                <p className="text-sm text-ink-500">
+                  The same 6-digit code you used to park
+                </p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-xl font-bold text-slate-900">Enter your code</h2>
-              <p className="text-sm text-slate-500">
-                The same 6-digit code you used to park
-              </p>
-            </div>
-          </div>
 
-          <Input
-            type="text"
-            inputMode="numeric"
-            maxLength={6}
-            placeholder="123456"
-            label="6-digit confirmation code"
-            icon={<Hash className="h-4 w-4" />}
-            value={codeInput}
-            onChange={(e) => setCodeInput(e.target.value.replace(/\D/g, ''))}
-            className="text-center font-mono tracking-[0.4em] text-2xl h-16"
-          />
+            <Input
+              type="text"
+              inputMode="numeric"
+              maxLength={6}
+              placeholder="••••••"
+              label="6-digit confirmation code"
+              icon={<Hash className="h-4 w-4" />}
+              value={codeInput}
+              onChange={(e) => setCodeInput(e.target.value.replace(/\D/g, ''))}
+              className="text-center font-mono tracking-[0.4em] text-2xl h-16"
+            />
 
-          <button
-            type="button"
-            onClick={() => lostCode.mutate()}
-            disabled={lostCode.isPending || !active}
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-primary-600 hover:text-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Mail className="h-4 w-4" />
-            {lostCode.isPending ? 'Sending...' : 'Lost your code? Email it to me'}
-          </button>
+            <button
+              type="button"
+              onClick={() => lostCode.mutate()}
+              disabled={lostCode.isPending || !active}
+              className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-600 hover:text-brand-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Mail className="h-4 w-4" />
+              {lostCode.isPending ? 'Sending…' : 'Lost your code? Email it to me'}
+            </button>
 
-          <Button
-            size="lg"
-            fullWidth
-            loading={pickUp.isPending}
-            disabled={codeInput.length !== 6}
-            onClick={submit}
-          >
-            <KeyRound className="h-5 w-5" />
-            Pick up my car
-          </Button>
+            <Button
+              size="lg"
+              fullWidth
+              variant="success"
+              loading={pickUp.isPending}
+              disabled={codeInput.length !== 6}
+              onClick={submit}
+            >
+              <KeyRound className="h-5 w-5" />
+              Pick up my car
+            </Button>
+          </Card>
         </motion.div>
       )}
 
@@ -264,58 +248,59 @@ export default function PickUpCarPage() {
           <motion.div
             initial={{ opacity: 0, scale: 0.94 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="rounded-3xl bg-white border border-slate-100 p-6 md:p-8 shadow-lg space-y-6"
           >
-            <div className="flex items-center justify-center">
-              <motion.div
-                initial={{ scale: 0.6 }}
-                animate={{ scale: 1 }}
-                transition={{ type: 'spring', stiffness: 220 }}
-                className="h-16 w-16 rounded-2xl bg-success-500 flex items-center justify-center shadow-lg"
-              >
-                <CheckCircle2 className="h-8 w-8 text-white" />
-              </motion.div>
-            </div>
-            <div className="text-center">
-              <h2 className="text-2xl font-bold text-slate-900">
-                Your car is at the pickup zone!
-              </h2>
-              <p className="text-slate-500">
-                Handled by {result.installer.name}
-              </p>
-            </div>
-
-            <div className="rounded-2xl bg-slate-50 p-4 text-sm space-y-1.5">
-              <div className="flex justify-between">
-                <span className="text-slate-500">Total parked</span>
-                <span className="font-semibold text-slate-900">
-                  {formatDuration(result.elapsed_minutes)}
-                </span>
+            <Card variant="raised" padding="xl" className="space-y-6">
+              <div className="flex items-center justify-center">
+                <motion.div
+                  initial={{ scale: 0.6 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: 'spring', stiffness: 220 }}
+                  className="h-16 w-16 rounded-2xl bg-gradient-to-br from-success-500 to-success-700 flex items-center justify-center shadow-[0_8px_24px_-8px_rgba(16,185,129,0.55)]"
+                >
+                  <CheckCircle2 className="h-8 w-8 text-white" />
+                </motion.div>
               </div>
-              {result.overtime_minutes > 0 && (
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Overtime</span>
-                  <span className="font-semibold text-danger-600">
-                    {formatDuration(result.overtime_minutes)}
+              <div className="text-center">
+                <h2 className="font-display text-2xl font-bold text-ink-900">
+                  Your car is at the pickup zone
+                </h2>
+                <p className="text-ink-500 mt-1">
+                  Handled by {result.installer.name}
+                </p>
+              </div>
+
+              <div className="rounded-2xl bg-surface-50 border border-surface-200 p-4 text-sm space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-ink-500">Total parked</span>
+                  <span className="font-semibold text-ink-900 tabular">
+                    {formatDuration(result.elapsed_minutes)}
                   </span>
                 </div>
-              )}
-              <div className="flex justify-between">
-                <span className="text-slate-500">Retrieved at</span>
-                <span className="font-semibold text-slate-900">
-                  {formatDateTime(result.retrieved_at)}
-                </span>
+                {result.overtime_minutes > 0 && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-ink-500">Overtime</span>
+                    <Badge tone="danger" size="md">
+                      {formatDuration(result.overtime_minutes)}
+                    </Badge>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span className="text-ink-500">Retrieved at</span>
+                  <span className="font-semibold text-ink-900">
+                    {formatDateTime(result.retrieved_at)}
+                  </span>
+                </div>
               </div>
-            </div>
 
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Button variant="secondary" fullWidth onClick={reset}>
-                Pick up another
-              </Button>
-              <Button fullWidth onClick={() => navigate('/subscriber')}>
-                Back to dashboard
-              </Button>
-            </div>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button variant="secondary" fullWidth onClick={reset}>
+                  Pick up another
+                </Button>
+                <Button fullWidth onClick={() => navigate('/subscriber')}>
+                  Back to dashboard
+                </Button>
+              </div>
+            </Card>
           </motion.div>
         )}
       </AnimatePresence>

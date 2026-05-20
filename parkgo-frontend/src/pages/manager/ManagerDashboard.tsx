@@ -1,16 +1,17 @@
+import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { motion } from 'framer-motion';
 import {
   PlusSquare,
   MinusSquare,
   BarChart3,
   Users,
   Car,
-  Gauge,
   TrendingUp,
   Clock,
-  type LucideIcon,
+  ArrowRight,
+  Activity,
+  Wrench,
 } from 'lucide-react';
 import {
   AreaChart,
@@ -29,101 +30,37 @@ import { reportsApi } from '@/api/reports.api';
 import { useFacilityLoad } from '@/hooks/useParking';
 import { formatDuration } from '@/utils/formatters';
 
-function KpiCard({
-  label,
-  value,
-  sub,
-  icon: Icon,
-  accent,
-  spark,
-}: {
-  label: string;
-  value: string;
-  sub?: string;
-  icon: LucideIcon;
-  accent: string;
-  spark?: { date: string; value: number }[];
-}) {
-  return (
-    <div className="rounded-3xl bg-white border border-slate-100 p-5 shadow-[0_2px_8px_rgba(0,0,0,0.04)] flex flex-col">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-xs uppercase tracking-wider text-slate-500 font-medium">
-            {label}
-          </p>
-          <p className="text-2xl md:text-3xl font-bold text-slate-900 mt-1 tabular-nums">
-            {value}
-          </p>
-          {sub && <p className="text-xs text-slate-500 mt-1">{sub}</p>}
-        </div>
-        <div className={`h-11 w-11 rounded-xl bg-gradient-to-br ${accent} flex items-center justify-center shadow-md`}>
-          <Icon className="h-5 w-5 text-white" strokeWidth={2.2} />
-        </div>
-      </div>
+import { PageHeader, SectionHeader } from '@/components/ui/PageHeader';
+import { BentoGrid, BentoCard } from '@/components/ui/Bento';
+import { StatTile } from '@/components/ui/StatTile';
+import { Badge } from '@/components/ui/Badge';
+import { GlowOrbs } from '@/components/ui/GlowOrbs';
+import { RadialGauge } from '@/components/charts/RadialGauge';
+import { OccupancyDonut } from '@/components/charts/OccupancyDonut';
+import { HourHeatmap } from '@/components/charts/HourHeatmap';
+import { ParkingLot3D, type ParkingSpot3D } from '@/components/3d/ParkingLot3D';
 
-      {spark && spark.length > 1 && (
-        <div className="h-16 -mx-1 mt-3">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={spark}>
-              <defs>
-                <linearGradient id={`spark-${label}`} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.5} />
-                  <stop offset="100%" stopColor="#3b82f6" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <Tooltip
-                contentStyle={{
-                  borderRadius: 8,
-                  border: '1px solid #e2e8f0',
-                  fontSize: 11,
-                  padding: '4px 8px',
-                }}
-                labelFormatter={(d) => format(new Date(d), 'MMM d')}
-                formatter={(v) => [`${Math.round(Number(v))}`, label]}
-              />
-              <XAxis dataKey="date" hide />
-              <Area
-                type="monotone"
-                dataKey="value"
-                stroke="#3b82f6"
-                strokeWidth={2}
-                fill={`url(#spark-${label})`}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      )}
-    </div>
-  );
-}
-
-const actions: {
-  to: string;
-  title: string;
-  description: string;
-  icon: LucideIcon;
-  gradient: string;
-}[] = [
+const quickActions = [
   {
     to: '/manager/reports',
     title: 'View reports',
     description: 'Occupancy · Behavior · Reservations',
     icon: BarChart3,
-    gradient: 'from-primary-500 to-primary-700',
+    tone: 'brand' as const,
   },
   {
     to: '/manager/add-facility',
     title: 'Add facility',
     description: 'Provision new spaces or installers',
     icon: PlusSquare,
-    gradient: 'from-success-500 to-success-700',
+    tone: 'success' as const,
   },
   {
     to: '/manager/remove-facility',
     title: 'Remove facility',
     description: 'Decommission spaces or installers',
     icon: MinusSquare,
-    gradient: 'from-rose-500 to-red-600',
+    tone: 'danger' as const,
   },
 ];
 
@@ -161,7 +98,12 @@ export default function ManagerDashboard() {
     refetchInterval: 30_000,
   });
 
-  // Peak hour heuristic from heatmap
+  const spaces = useQuery({
+    queryKey: ['facility', 'spaces'],
+    queryFn: () => facilityApi.listSpaces(),
+    refetchInterval: 20_000,
+  });
+
   let peakHour: number | null = null;
   if (occupancy.data?.hourly_heatmap) {
     let bestIdx = 0;
@@ -185,112 +127,423 @@ export default function ManagerDashboard() {
     value: d.occupancy,
   }));
 
+  const lotSpots = useMemo<ParkingSpot3D[]>(() => {
+    const fromApi = spaces.data ?? [];
+    if (fromApi.length === 0) return [];
+    return fromApi.map((s) => ({
+      space_number: s.space_number,
+      is_occupied: s.in_use,
+      is_reserved: s.reserved,
+    }));
+  }, [spaces.data]);
+
   return (
-    <div className="space-y-8">
-      <header>
-        <p className="text-sm text-slate-500">Manager console</p>
-        <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
-          {user?.first_name} {user?.last_name}
-        </h1>
-      </header>
-
-      {/* KPIs */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <KpiCard
-          label="Occupancy this month"
-          value={
-            occupancy.isLoading
-              ? '—'
-              : `${(occupancy.data?.average_occupancy ?? 0).toFixed(0)}%`
-          }
-          sub={`peak ${(occupancy.data?.peak_hours_occupancy ?? 0).toFixed(0)}% · off-peak ${(occupancy.data?.off_peak_occupancy ?? 0).toFixed(0)}%`}
-          icon={Gauge}
-          accent="from-primary-500 to-primary-700"
-          spark={sparkDaily}
-        />
-        <KpiCard
-          label="Free spots now"
-          value={
-            load.isLoading
-              ? '—'
-              : `${load.data?.free ?? 0} / ${load.data?.total ?? 0}`
-          }
-          sub={
-            load.data ? `${load.data.occupancy_percent.toFixed(0)}% occupied` : ''
-          }
-          icon={Car}
-          accent="from-emerald-500 to-emerald-700"
-        />
-        <KpiCard
-          label="Active subscribers"
-          value={subscribers.isLoading ? '—' : String(activeSubs)}
-          sub={`${totalSubs - activeSubs} inactive of ${totalSubs} total`}
-          icon={Users}
-          accent="from-cyan-500 to-blue-600"
-        />
-        <KpiCard
-          label="Avg parking duration"
-          value={
-            behavior.isLoading
-              ? '—'
-              : behavior.data
-              ? formatDuration(behavior.data.average_duration_hours * 60)
-              : '—'
-          }
-          sub={
-            behavior.data
-              ? `${behavior.data.total_parkings} sessions this month`
-              : undefined
-          }
-          icon={Clock}
-          accent="from-amber-500 to-amber-600"
-        />
-        <KpiCard
-          label="Peak hour today"
-          value={peakHour != null ? `${String(peakHour).padStart(2, '0')}:00` : '—'}
-          sub="based on this month's heatmap"
-          icon={TrendingUp}
-          accent="from-purple-500 to-fuchsia-600"
-        />
-        <KpiCard
-          label="Installers"
-          value={
-            installers.isLoading
-              ? '—'
-              : `${installers.data?.filter((i) => i.is_free).length ?? 0} / ${installers.data?.length ?? 0}`
-          }
-          sub={`${active.data?.length ?? 0} parkings active`}
-          icon={Gauge}
-          accent="from-rose-500 to-red-600"
-        />
-      </section>
-
-      {/* Quick actions */}
-      <section className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-5">
-        {actions.map((a, i) => (
-          <motion.div
-            key={a.to}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.04 }}
-          >
-            <Link to={a.to} className="block group">
-              <div
-                className={`relative overflow-hidden rounded-3xl bg-gradient-to-br ${a.gradient} p-6 text-white shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all min-h-[150px] flex flex-col`}
-              >
-                <div className="absolute -top-10 -right-10 h-32 w-32 rounded-full bg-white/10 group-hover:scale-150 transition-transform duration-500" />
-                <a.icon className="h-9 w-9 mb-3 relative z-10" strokeWidth={2.2} />
-                <h3 className="text-lg md:text-xl font-bold mb-1 relative z-10 tracking-tight">
-                  {a.title}
-                </h3>
-                <p className="text-sm text-white/85 relative z-10 mt-auto">
-                  {a.description}
-                </p>
-              </div>
+    <div className="space-y-6 md:space-y-8">
+      <PageHeader
+        eyebrow="Manager console"
+        title={
+          <>
+            Good day, <span className="text-gradient-brand">{user?.first_name}</span>
+          </>
+        }
+        description="Real-time facility state, monthly trends and operational controls."
+        actions={
+          <>
+            <Badge tone="success" dot size="lg">
+              Live
+            </Badge>
+            <Link
+              to="/manager/reports"
+              className="inline-flex items-center gap-2 h-11 px-5 rounded-2xl bg-ink-900 text-white font-semibold text-sm shadow-elevated hover:bg-ink-800"
+            >
+              <BarChart3 className="h-4 w-4" />
+              Reports
             </Link>
-          </motion.div>
+          </>
+        }
+      />
+
+      <BentoGrid>
+        {/* Occupancy gauge — hero */}
+        <BentoCard
+          span="col-span-2 md:col-span-3 lg:col-span-4"
+          tone="ink"
+          padding="lg"
+          rowSpan="row-span-2"
+          delay={0}
+          className="relative overflow-hidden min-h-[420px] flex flex-col"
+        >
+          <GlowOrbs variant="brand" />
+          <div className="relative flex items-center justify-between mb-2">
+            <Badge tone="ink" size="md" className="bg-white/10 text-white border-white/15">
+              This month
+            </Badge>
+            <Activity className="h-4 w-4 text-white/50" />
+          </div>
+          <h3 className="relative font-display text-lg font-semibold text-white tracking-tight">
+            Avg occupancy
+          </h3>
+          <p className="relative text-xs text-white/60 mt-0.5">
+            Compared with prior month
+          </p>
+
+          <div className="relative flex-1 flex items-center justify-center my-4">
+            <RadialGauge
+              value={occupancy.data?.average_occupancy ?? 0}
+              size={200}
+              thickness={16}
+              tone="brand"
+              inverted
+              label="Avg"
+              sublabel={`${occupancy.data?.peak_hours_occupancy?.toFixed(0) ?? '—'}% peak`}
+            />
+          </div>
+
+          {sparkDaily.length > 1 && (
+            <div className="relative h-20 -mx-2">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={sparkDaily}>
+                  <defs>
+                    <linearGradient id="dash-spark" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#8c84ff" stopOpacity={0.55} />
+                      <stop offset="100%" stopColor="#8c84ff" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <Tooltip
+                    contentStyle={{
+                      borderRadius: 10,
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      background: '#0d0d18',
+                      color: '#fff',
+                      fontSize: 11,
+                      padding: '6px 10px',
+                    }}
+                    labelFormatter={(d) => format(new Date(d), 'MMM d')}
+                    formatter={(v) => [`${Math.round(Number(v))}%`, 'Occupancy']}
+                  />
+                  <XAxis dataKey="date" hide />
+                  <Area
+                    type="monotone"
+                    dataKey="value"
+                    stroke="#a8a1ff"
+                    strokeWidth={2.2}
+                    fill="url(#dash-spark)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </BentoCard>
+
+        {/* 3D lot — hero */}
+        <BentoCard
+          span="col-span-2 md:col-span-3 lg:col-span-8"
+          tone="surface"
+          padding="lg"
+          rowSpan="row-span-2"
+          delay={0.05}
+          className="min-h-[420px] flex flex-col"
+        >
+          <SectionHeader
+            title="Live facility map"
+            description="Drag to orbit · scroll to zoom"
+            actions={
+              <div className="flex items-center gap-2">
+                <Badge tone="success" dot size="md">
+                  {load.data?.free ?? 0} free
+                </Badge>
+                <Badge tone="danger" dot size="md">
+                  {load.data?.occupied ?? 0} occupied
+                </Badge>
+              </div>
+            }
+          />
+          <div className="flex-1 rounded-2xl overflow-hidden bg-gradient-to-br from-ink-800 to-ink-900 border border-surface-200">
+            {lotSpots.length > 0 ? (
+              <ParkingLot3D spots={lotSpots} cols={8} />
+            ) : (
+              <div className="h-full flex items-center justify-center text-white/50 text-sm">
+                Loading facility…
+              </div>
+            )}
+          </div>
+        </BentoCard>
+
+        {/* KPI tiles */}
+        <BentoCard span="col-span-2 md:col-span-3 lg:col-span-3" delay={0.08}>
+          <StatTile
+            label="Free now"
+            value={
+              load.isLoading
+                ? '—'
+                : `${load.data?.free ?? 0} / ${load.data?.total ?? 0}`
+            }
+            hint={`${load.data?.occupancy_percent?.toFixed(0) ?? 0}% occupied`}
+            icon={Car}
+            iconTone="success"
+            loading={load.isLoading}
+          />
+        </BentoCard>
+        <BentoCard span="col-span-2 md:col-span-3 lg:col-span-3" delay={0.1}>
+          <StatTile
+            label="Active subscribers"
+            value={subscribers.isLoading ? '—' : activeSubs}
+            hint={`${totalSubs - activeSubs} inactive · ${totalSubs} total`}
+            icon={Users}
+            iconTone="info"
+            loading={subscribers.isLoading}
+          />
+        </BentoCard>
+        <BentoCard span="col-span-2 md:col-span-3 lg:col-span-3" delay={0.12}>
+          <StatTile
+            label="Avg duration"
+            value={
+              behavior.isLoading
+                ? '—'
+                : behavior.data
+                ? formatDuration(behavior.data.average_duration_hours * 60)
+                : '—'
+            }
+            hint={
+              behavior.data
+                ? `${behavior.data.total_parkings} sessions / mo`
+                : undefined
+            }
+            icon={Clock}
+            iconTone="accent"
+            loading={behavior.isLoading}
+          />
+        </BentoCard>
+        <BentoCard span="col-span-2 md:col-span-3 lg:col-span-3" delay={0.14}>
+          <StatTile
+            label="Peak hour"
+            value={
+              peakHour != null ? `${String(peakHour).padStart(2, '0')}:00` : '—'
+            }
+            hint="Highest hourly load"
+            icon={TrendingUp}
+            iconTone="brand"
+            loading={occupancy.isLoading}
+          />
+        </BentoCard>
+
+        {/* Hourly heatmap — wide */}
+        <BentoCard
+          span="col-span-2 md:col-span-6 lg:col-span-8"
+          tone="surface"
+          delay={0.16}
+        >
+          <SectionHeader
+            title="Hourly occupancy heatmap"
+            description="Darker = busier hour"
+          />
+          <HourHeatmap values={occupancy.data?.hourly_heatmap ?? new Array(24).fill(0)} />
+        </BentoCard>
+
+        {/* Duration donut */}
+        <BentoCard
+          span="col-span-2 md:col-span-3 lg:col-span-4"
+          tone="surface"
+          delay={0.18}
+          className="flex flex-col items-center"
+        >
+          <SectionHeader
+            title="Session duration"
+            description="Distribution this month"
+            className="w-full"
+          />
+          <OccupancyDonut
+            size={180}
+            segments={[
+              {
+                label: '< 1h',
+                value: behavior.data?.distribution.up_to_1h ?? 0,
+                color: '#10b981',
+              },
+              {
+                label: '1–4h',
+                value: behavior.data?.distribution.between_1_and_4h ?? 0,
+                color: '#5d52f7',
+              },
+              {
+                label: '> 4h',
+                value: behavior.data?.distribution.over_4h ?? 0,
+                color: '#f97316',
+              },
+            ]}
+            centerValue={behavior.data?.total_parkings ?? 0}
+            centerLabel="Sessions"
+          />
+          <div className="grid grid-cols-3 gap-1.5 w-full mt-4">
+            <Legend tone="bg-success-500" label="< 1h" value={`${behavior.data?.distribution_percent.up_to_1h?.toFixed(0) ?? 0}%`} />
+            <Legend tone="bg-brand-500" label="1–4h" value={`${behavior.data?.distribution_percent.between_1_and_4h?.toFixed(0) ?? 0}%`} />
+            <Legend tone="bg-accent-500" label="> 4h" value={`${behavior.data?.distribution_percent.over_4h?.toFixed(0) ?? 0}%`} />
+          </div>
+        </BentoCard>
+
+        {/* Installers status */}
+        <BentoCard
+          span="col-span-2 md:col-span-3 lg:col-span-4"
+          tone="surface"
+          delay={0.2}
+        >
+          <SectionHeader
+            title="Installers"
+            description="Robotic shuttle status"
+            actions={
+              <Badge tone="brand" size="md">
+                {installers.data?.filter((i) => i.is_free).length ?? 0} / {installers.data?.length ?? 0}
+              </Badge>
+            }
+          />
+          <ul className="space-y-2 mt-2">
+            {(installers.data ?? []).slice(0, 5).map((i) => (
+              <li
+                key={i.installer_id}
+                className="flex items-center justify-between p-2.5 rounded-xl bg-surface-50 border border-surface-200"
+              >
+                <div className="flex items-center gap-2.5">
+                  <span
+                    className={`h-2 w-2 rounded-full ${
+                      i.is_free ? 'bg-success-500' : 'bg-accent-500 animate-pulse'
+                    }`}
+                  />
+                  <span className="text-sm font-medium text-ink-800 truncate">
+                    {i.installer_name}
+                  </span>
+                </div>
+                <Badge tone={i.is_free ? 'success' : 'warning'} size="sm">
+                  {i.is_free ? 'Idle' : 'Busy'}
+                </Badge>
+              </li>
+            ))}
+            {(installers.data?.length ?? 0) === 0 && (
+              <li className="text-sm text-ink-500 py-4 text-center">
+                No installers configured.
+              </li>
+            )}
+          </ul>
+        </BentoCard>
+
+        {/* Active parkings live list */}
+        <BentoCard
+          span="col-span-2 md:col-span-3 lg:col-span-4"
+          tone="surface"
+          delay={0.22}
+        >
+          <SectionHeader
+            title="Active parkings"
+            description="Live"
+            actions={
+              <Link
+                to="/manager/active-parkings"
+                className="text-xs font-semibold text-brand-700 hover:text-brand-800 inline-flex items-center gap-1"
+              >
+                View all <ArrowRight className="h-3 w-3" />
+              </Link>
+            }
+          />
+          <p className="font-display text-4xl font-bold tabular text-ink-900 leading-none">
+            {active.data?.length ?? 0}
+          </p>
+          <p className="text-xs text-ink-500 mt-1">cars currently parked</p>
+          <div className="mt-4 space-y-1.5">
+            {(active.data ?? []).slice(0, 3).map((p) => (
+              <div
+                key={p.parking_code}
+                className="flex items-center justify-between p-2 rounded-lg bg-surface-50 border border-surface-200"
+              >
+                <span className="text-xs font-mono font-semibold text-ink-700">
+                  #{p.parking_code}
+                </span>
+                <span className="text-xs text-ink-500 truncate">
+                  {p.user ? `${p.user.first_name} ${p.user.last_name}` : '—'}
+                </span>
+                <Badge tone="brand" size="sm">space {p.parking_space}</Badge>
+              </div>
+            ))}
+          </div>
+        </BentoCard>
+
+        {/* Quick actions */}
+        {quickActions.map((a, i) => (
+          <BentoCard
+            key={a.to}
+            span="col-span-2 md:col-span-3 lg:col-span-4"
+            tone={a.tone}
+            padding="lg"
+            interactive
+            delay={0.24 + i * 0.04}
+            className="relative overflow-hidden min-h-[150px] cursor-pointer"
+          >
+            <GlowOrbs variant={a.tone === 'brand' ? 'brand' : a.tone === 'success' ? 'success' : 'accent'} />
+            <Link to={a.to} className="relative flex flex-col h-full">
+              <div className="flex items-center justify-between mb-4">
+                <span className="h-11 w-11 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center">
+                  <a.icon className="h-5 w-5 text-white" strokeWidth={2.4} />
+                </span>
+                <ArrowRight className="h-5 w-5 text-white/70" />
+              </div>
+              <h3 className="font-display text-xl font-bold tracking-tight leading-tight">
+                {a.title}
+              </h3>
+              <p className="text-sm text-white/85 mt-auto pt-3">{a.description}</p>
+            </Link>
+          </BentoCard>
         ))}
-      </section>
+
+        {/* Maintenance shortcut */}
+        <BentoCard
+          span="col-span-2 md:col-span-6 lg:col-span-12"
+          tone="glass"
+          delay={0.36}
+          className="flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+        >
+          <div className="flex items-center gap-3">
+            <span className="h-11 w-11 rounded-2xl bg-warning-50 border border-warning-100 flex items-center justify-center text-warning-600">
+              <Wrench className="h-5 w-5" strokeWidth={2.2} />
+            </span>
+            <div>
+              <p className="font-display font-semibold text-ink-900">
+                Need maintenance?
+              </p>
+              <p className="text-sm text-ink-500">
+                Attendants can request a technician from the Maintenance page.
+              </p>
+            </div>
+          </div>
+          <Link
+            to="/manager/subscribers"
+            className="inline-flex items-center gap-2 h-11 px-5 rounded-2xl bg-ink-900 text-white font-semibold text-sm shadow-elevated hover:bg-ink-800"
+          >
+            <Users className="h-4 w-4" />
+            Manage subscribers
+          </Link>
+        </BentoCard>
+      </BentoGrid>
     </div>
   );
 }
+
+function Legend({
+  tone,
+  label,
+  value,
+}: {
+  tone: string;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-xl bg-surface-50 border border-surface-200 p-2 text-center">
+      <div className="flex items-center justify-center gap-1.5">
+        <span className={`h-2 w-2 rounded-full ${tone}`} />
+        <span className="text-[10px] uppercase font-semibold text-ink-500 tracking-wider">
+          {label}
+        </span>
+      </div>
+      <p className="font-display text-sm font-bold text-ink-900 tabular mt-0.5">{value}</p>
+    </div>
+  );
+}
+

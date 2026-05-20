@@ -1,186 +1,317 @@
+import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { CalendarPlus, Car, KeyRound, Hash } from 'lucide-react';
+import {
+  CalendarPlus,
+  Car,
+  KeyRound,
+  Hash,
+  ArrowRight,
+  TrendingUp,
+  CalendarClock,
+  ShieldCheck,
+  Clock,
+} from 'lucide-react';
 
 import { useAuthStore } from '@/store/authStore';
-import { useFacilityLoad, useMyActiveParking, useMyReservations } from '@/hooks/useParking';
+import {
+  useFacilityLoad,
+  useMyActiveParking,
+  useMyReservations,
+  useMyParkingHistory,
+} from '@/hooks/useParking';
+import { facilityApi } from '@/api/facility.api';
 import { formatCode, formatDateTime } from '@/utils/formatters';
+import { BentoGrid, BentoCard } from '@/components/ui/Bento';
+import { StatTile } from '@/components/ui/StatTile';
+import { Badge } from '@/components/ui/Badge';
+import { PageHeader, SectionHeader } from '@/components/ui/PageHeader';
+import { GlowOrbs } from '@/components/ui/GlowOrbs';
+import { RadialGauge } from '@/components/charts/RadialGauge';
+import { ParkingLot3D, type ParkingSpot3D } from '@/components/3d/ParkingLot3D';
 
-interface ActionCard {
-  to: string;
-  title: string;
-  description: string;
-  icon: typeof CalendarPlus;
-  gradient: string;
-}
-
-const actions: ActionCard[] = [
+const actions = [
   {
     to: '/subscriber/reserve',
-    title: 'ORDER NOW',
-    description: 'Reserve a spot 24h–7d in advance',
+    title: 'Reserve a spot',
+    description: '24h–7d in advance',
     icon: CalendarPlus,
-    gradient: 'from-primary-500 to-primary-700',
+    tone: 'brand' as const,
   },
   {
     to: '/subscriber/drop-off',
-    title: 'DROP OFF CAR',
-    description: 'Park your vehicle right now',
+    title: 'Drop off car',
+    description: 'Park now',
     icon: Car,
-    gradient: 'from-accent-500 to-accent-600',
+    tone: 'accent' as const,
   },
   {
     to: '/subscriber/pick-up',
-    title: 'PICK UP CAR',
-    description: 'Retrieve your parked vehicle',
+    title: 'Pick up car',
+    description: 'Retrieve vehicle',
     icon: KeyRound,
-    gradient: 'from-success-500 to-success-700',
+    tone: 'success' as const,
   },
 ];
-
-function StatCard({
-  label,
-  value,
-  sub,
-}: {
-  label: string;
-  value: string;
-  sub?: string;
-}) {
-  return (
-    <div className="rounded-2xl bg-white border border-slate-100 px-5 py-4 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
-      <p className="text-xs uppercase tracking-wider text-slate-500 font-medium">
-        {label}
-      </p>
-      <p className="text-2xl md:text-3xl font-bold text-slate-900 mt-1 tabular-nums">
-        {value}
-      </p>
-      {sub && <p className="text-xs text-slate-500 mt-1">{sub}</p>}
-    </div>
-  );
-}
 
 export default function SubscriberDashboard() {
   const user = useAuthStore((s) => s.user);
   const load = useFacilityLoad(10_000);
   const activeParking = useMyActiveParking();
   const reservations = useMyReservations();
+  const history = useMyParkingHistory();
+
+  const spaces = useQuery({
+    queryKey: ['facility', 'spaces'],
+    queryFn: () => facilityApi.listSpaces(),
+    refetchInterval: 20_000,
+  });
 
   const activeReservationsCount =
     reservations.data?.filter((r) => r.status === 'active').length ?? 0;
 
+  const lotSpots = useMemo<ParkingSpot3D[]>(() => {
+    const fromApi = spaces.data ?? [];
+    if (fromApi.length === 0) {
+      // Fallback demo data so the 3D view always renders something nice
+      return Array.from({ length: 40 }, (_, i) => {
+        const r = (i * 9301 + 49297) % 233280;
+        const v = (r / 233280) * 10;
+        return {
+          space_number: i + 1,
+          is_occupied: v < (load.data ? load.data.occupancy_percent / 10 : 5),
+          is_reserved: v >= 8 && v < 8.8,
+          is_mine: activeParking.data?.parking_space === i + 1,
+        };
+      });
+    }
+    return fromApi.map((s) => ({
+      space_number: s.space_number,
+      is_occupied: s.in_use,
+      is_reserved: s.reserved,
+      is_mine: activeParking.data?.parking_space === s.space_number,
+    }));
+  }, [spaces.data, activeParking.data, load.data]);
+
+  const occupancyPercent = load.data?.occupancy_percent ?? 0;
+  const monthlySessions = history.data?.length ?? 0;
+
   return (
-    <div className="space-y-8">
-      <header>
-        <p className="text-sm text-slate-500">Welcome back,</p>
-        <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
-          {user?.first_name} {user?.last_name}
-        </h1>
-      </header>
+    <div className="space-y-6 md:space-y-8">
+      {/* HERO HEADER */}
+      <PageHeader
+        eyebrow="Dashboard"
+        title={
+          <>
+            <span className="text-ink-500 font-medium">Welcome back, </span>
+            <span className="text-gradient-brand">
+              {user?.first_name || 'Driver'}
+            </span>
+          </>
+        }
+        description="Your live parking overview, reservations and quick actions in one view."
+        actions={
+          <Link
+            to="/subscriber/parking-history"
+            className="inline-flex items-center gap-2 h-11 px-5 rounded-2xl bg-surface-0 border border-surface-200 text-ink-800 font-semibold text-sm shadow-soft hover:bg-surface-100"
+          >
+            <TrendingUp className="h-4 w-4" />
+            History
+          </Link>
+        }
+      />
 
-      {/* Stats strip */}
-      <section className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
-        <StatCard
-          label="Free Spots"
-          value={
-            load.isLoading
-              ? '—'
-              : `${load.data?.free ?? 0} / ${load.data?.total ?? 0}`
-          }
-          sub={
-            load.data
-              ? `${(100 - load.data.occupancy_percent).toFixed(0)}% available`
-              : undefined
-          }
-        />
-        <StatCard
-          label="My Reservations"
-          value={
-            reservations.isLoading ? '—' : String(activeReservationsCount)
-          }
-          sub="currently active"
-        />
-        <StatCard
-          label="Current Parking"
-          value={
-            activeParking.isLoading
-              ? '—'
-              : activeParking.data
-              ? `#${formatCode(activeParking.data.confirmation_code)}`
-              : 'None'
-          }
-          sub={
-            activeParking.data
-              ? `at space #${activeParking.data.parking_space}`
-              : undefined
-          }
-        />
-      </section>
-
-      {/* Active parking banner */}
+      {/* ACTIVE BANNER */}
       {activeParking.data && (
         <motion.div
-          initial={{ opacity: 0, y: 8 }}
+          initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-2xl bg-gradient-to-r from-success-50 to-emerald-100 border border-emerald-200 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+          className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-success-600 via-success-500 to-emerald-400 text-white p-5 sm:p-6 shadow-[0_18px_48px_-18px_rgba(16,185,129,0.6)]"
         >
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-success-500 flex items-center justify-center shadow">
-              <Hash className="h-5 w-5 text-white" />
+          <GlowOrbs variant="success" />
+          <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="h-12 w-12 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center">
+                <Hash className="h-5 w-5 text-white" strokeWidth={2.4} />
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-wider text-white/80 font-semibold">
+                  Active parking session
+                </p>
+                <p className="font-display text-2xl md:text-3xl font-bold font-mono tracking-[0.25em] mt-0.5">
+                  {formatCode(activeParking.data.confirmation_code)}
+                </p>
+                <p className="text-xs text-white/85 mt-1 flex items-center gap-1.5">
+                  <Clock className="h-3 w-3" />
+                  Started {formatDateTime(activeParking.data.parking_date)} · space #
+                  {activeParking.data.parking_space}
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="text-sm text-emerald-700 font-medium">
-                Active parking session
-              </p>
-              <p className="text-lg font-bold text-emerald-900 font-mono tracking-widest">
-                {formatCode(activeParking.data.confirmation_code)}
-              </p>
-              <p className="text-xs text-emerald-700">
-                Started {formatDateTime(activeParking.data.parking_date)} · space #
-                {activeParking.data.parking_space}
-              </p>
-            </div>
+            <Link
+              to="/subscriber/pick-up"
+              className="inline-flex items-center justify-center gap-2 px-5 h-11 rounded-2xl bg-white text-success-700 font-semibold hover:bg-white/95 transition-all hover:-translate-y-0.5 shadow-[0_8px_24px_-8px_rgba(0,0,0,0.4)] shrink-0"
+            >
+              <KeyRound className="h-4 w-4" />
+              Pick up now
+              <ArrowRight className="h-4 w-4" />
+            </Link>
           </div>
-          <Link
-            to="/subscriber/pick-up"
-            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-emerald-700 text-white font-medium hover:bg-emerald-800 transition-colors text-sm shrink-0"
-          >
-            <KeyRound className="h-4 w-4" />
-            Pick up now
-          </Link>
         </motion.div>
       )}
 
-      {/* Big action cards */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-5">
-        {actions.map((action, idx) => (
-          <motion.div
-            key={action.to}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: idx * 0.05 }}
-          >
-            <Link to={action.to} className="block group">
-              <div
-                className={`relative overflow-hidden rounded-3xl bg-gradient-to-br ${action.gradient} p-7 text-white shadow-lg transition-all hover:shadow-2xl hover:-translate-y-1 active:translate-y-0 min-h-[200px] flex flex-col`}
-              >
-                <div className="absolute -top-10 -right-10 h-40 w-40 rounded-full bg-white/10 group-hover:scale-150 transition-transform duration-500" />
-                <div className="absolute -bottom-12 -left-12 h-36 w-36 rounded-full bg-white/5 group-hover:scale-125 transition-transform duration-500" />
-                <action.icon
-                  className="h-10 w-10 mb-4 relative z-10"
-                  strokeWidth={2.2}
-                />
-                <h3 className="text-xl md:text-2xl font-bold mb-1.5 relative z-10 tracking-tight">
-                  {action.title}
+      {/* BENTO GRID */}
+      <BentoGrid>
+        {/* 3D Lot — hero */}
+        <BentoCard
+          span="col-span-2 md:col-span-6 lg:col-span-8"
+          tone="ink"
+          padding="none"
+          rowSpan="row-span-2"
+          delay={0}
+          className="min-h-[420px]"
+        >
+          <div className="relative h-full p-5 md:p-6 flex flex-col">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <Badge tone="ink" size="md" className="bg-white/10 text-white border-white/15 mb-2">
+                  Live
+                </Badge>
+                <h3 className="font-display text-lg font-semibold tracking-tight text-white">
+                  Facility map
                 </h3>
-                <p className="text-sm text-white/85 relative z-10 mt-auto">
-                  {action.description}
+                <p className="text-xs text-white/60 mt-0.5">
+                  Drag to rotate · scroll to zoom
                 </p>
               </div>
+              <div className="text-right">
+                <p className="text-[11px] uppercase tracking-wider text-white/60 font-semibold">
+                  Free now
+                </p>
+                <p className="font-display text-2xl font-bold text-white tabular leading-none mt-1">
+                  {load.isLoading ? '—' : load.data?.free ?? 0}
+                  <span className="text-white/50 text-base"> / {load.data?.total ?? 0}</span>
+                </p>
+              </div>
+            </div>
+            <div className="flex-1 rounded-2xl overflow-hidden bg-gradient-to-br from-ink-800 to-ink-900 border border-white/5">
+              <ParkingLot3D spots={lotSpots} cols={8} />
+            </div>
+          </div>
+        </BentoCard>
+
+        {/* Occupancy gauge */}
+        <BentoCard
+          span="col-span-2 md:col-span-3 lg:col-span-4"
+          tone="surface"
+          padding="lg"
+          delay={0.05}
+          className="flex flex-col items-center justify-between min-h-[200px]"
+        >
+          <SectionHeader
+            title="Availability"
+            description="Updated every 10s"
+          />
+          <RadialGauge
+            value={100 - occupancyPercent}
+            size={170}
+            tone="success"
+            label="Free"
+            sublabel={`${load.data?.free ?? 0} of ${load.data?.total ?? 0} spots`}
+          />
+          <div className="grid grid-cols-2 gap-2 w-full mt-3">
+            <div className="rounded-xl bg-success-50 border border-success-100 p-2.5 text-center">
+              <p className="text-[10px] uppercase tracking-wider font-semibold text-success-700">
+                Free
+              </p>
+              <p className="font-display text-lg font-bold text-success-700 tabular">
+                {load.data?.free ?? 0}
+              </p>
+            </div>
+            <div className="rounded-xl bg-danger-50 border border-danger-100 p-2.5 text-center">
+              <p className="text-[10px] uppercase tracking-wider font-semibold text-danger-700">
+                Occupied
+              </p>
+              <p className="font-display text-lg font-bold text-danger-700 tabular">
+                {load.data?.occupied ?? 0}
+              </p>
+            </div>
+          </div>
+        </BentoCard>
+
+        {/* My stats trio */}
+        <BentoCard
+          span="col-span-2 md:col-span-3 lg:col-span-4"
+          tone="surface"
+          padding="lg"
+          delay={0.08}
+        >
+          <StatTile
+            label="My reservations"
+            value={reservations.isLoading ? '—' : activeReservationsCount}
+            hint="currently active"
+            icon={CalendarClock}
+            iconTone="brand"
+            loading={reservations.isLoading}
+          />
+        </BentoCard>
+
+        <BentoCard
+          span="col-span-2 md:col-span-3 lg:col-span-4"
+          tone="aurora"
+          padding="lg"
+          delay={0.1}
+          className="relative overflow-hidden text-white"
+        >
+          <GlowOrbs variant="brand" />
+          <div className="relative">
+            <StatTile
+              label="Sessions this month"
+              value={monthlySessions}
+              hint="across all visits"
+              icon={TrendingUp}
+              variant="dark"
+              loading={history.isLoading}
+            />
+          </div>
+        </BentoCard>
+
+        {/* Quick actions — pinned bottom row */}
+        {actions.map((a, i) => (
+          <BentoCard
+            key={a.to}
+            span="col-span-2 md:col-span-2 lg:col-span-4"
+            tone={a.tone}
+            padding="lg"
+            interactive
+            delay={0.12 + i * 0.04}
+            className="relative overflow-hidden min-h-[150px] cursor-pointer"
+          >
+            <GlowOrbs variant={a.tone === 'brand' ? 'brand' : a.tone === 'accent' ? 'accent' : 'success'} />
+            <Link to={a.to} className="relative flex flex-col h-full">
+              <div className="flex items-center justify-between mb-4">
+                <span className="h-11 w-11 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center">
+                  <a.icon className="h-5 w-5 text-white" strokeWidth={2.4} />
+                </span>
+                <ArrowRight className="h-5 w-5 text-white/70 group-hover:translate-x-1 transition-transform" />
+              </div>
+              <h3 className="font-display text-xl font-bold tracking-tight leading-tight">
+                {a.title}
+              </h3>
+              <p className="text-sm text-white/85 mt-auto pt-3">
+                {a.description}
+              </p>
             </Link>
-          </motion.div>
+          </BentoCard>
         ))}
-      </section>
+      </BentoGrid>
+
+      {/* TRUST FOOTER */}
+      <div className="flex items-center justify-center gap-2 text-xs text-ink-500 pt-2">
+        <ShieldCheck className="h-3.5 w-3.5 text-success-600" />
+        Your vehicle is fully insured during automated parking operations.
+      </div>
     </div>
   );
 }

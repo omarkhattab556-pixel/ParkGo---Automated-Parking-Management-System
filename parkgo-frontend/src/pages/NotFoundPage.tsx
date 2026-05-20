@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Car, ArrowLeft } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 
 import { Button } from '@/components/ui/Button';
+import { ParkGoMark } from '@/components/layout/ParkGoMark';
 import { useAuthStore } from '@/store/authStore';
 import { ROLE_LANDING } from '@/utils/constants';
 
@@ -11,34 +12,36 @@ export default function NotFoundPage() {
   const target = user ? ROLE_LANDING[user.user_type] || '/' : '/login';
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-primary-50 via-white to-primary-100 p-6">
+    <div className="min-h-screen w-full flex items-center justify-center bg-aurora-soft p-6 relative overflow-hidden">
+      <div aria-hidden className="absolute -top-32 -left-32 h-96 w-96 rounded-full bg-brand-400/25 blur-[120px]" />
+      <div aria-hidden className="absolute -bottom-32 -right-32 h-96 w-96 rounded-full bg-accent-400/25 blur-[120px]" />
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="w-full max-w-md text-center"
+        transition={{ duration: 0.5 }}
+        className="relative w-full max-w-md text-center"
       >
         <motion.div
           initial={{ scale: 0.7, rotate: -8 }}
           animate={{ scale: 1, rotate: 0 }}
           transition={{ type: 'spring', stiffness: 180, damping: 12 }}
-          className="mx-auto h-24 w-24 rounded-3xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center shadow-xl mb-6"
+          className="mx-auto mb-6 w-fit"
         >
-          <Car className="h-12 w-12 text-white" strokeWidth={2.2} />
+          <ParkGoMark size={72} />
         </motion.div>
 
-        <p className="text-7xl font-extrabold tracking-tighter bg-clip-text text-transparent bg-gradient-to-br from-primary-600 to-primary-800">
+        <p className="font-display text-[120px] font-extrabold tracking-tighter leading-none text-gradient-brand">
           404
         </p>
-        <h1 className="text-2xl font-bold text-slate-900 tracking-tight mt-2">
+        <h1 className="font-display text-2xl font-bold text-ink-900 tracking-tight mt-2">
           We can't find that page
         </h1>
-        <p className="text-slate-500 mt-2 mb-6">
-          The link may be broken, or the page may have moved. Let's get you
-          back somewhere useful.
+        <p className="text-ink-500 mt-2 mb-7">
+          The link may be broken, or the page may have moved. Let's get you back
+          somewhere useful.
         </p>
 
-        <Link to={target}>
+        <Link to={target} className="inline-block">
           <Button size="lg">
             <ArrowLeft className="h-5 w-5" />
             {user ? 'Back to dashboard' : 'Back to sign in'}

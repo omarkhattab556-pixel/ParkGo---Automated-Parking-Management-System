@@ -1,11 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
+import { Gauge as GaugeIcon } from 'lucide-react';
 import {
-  Gauge as GaugeIcon,
-} from 'lucide-react';
-import {
-  PieChart,
-  Pie,
-  Cell,
   ResponsiveContainer,
   Tooltip,
   AreaChart,
@@ -13,86 +8,16 @@ import {
   CartesianGrid,
   XAxis,
   YAxis,
-  Legend,
 } from 'recharts';
-import { motion } from 'framer-motion';
+import { format } from 'date-fns';
 
 import { facilityApi } from '@/api/facility.api';
 import { ChartSkeleton } from '@/components/common/Skeleton';
-import { format } from 'date-fns';
-
-/* ----- Half-circle gauge (SVG) ----- */
-function Gauge({ percent }: { percent: number }) {
-  const clamped = Math.max(0, Math.min(100, percent));
-  const angle = (clamped / 100) * 180;
-  const r = 80;
-  const cx = 100;
-  const cy = 100;
-  const startRad = Math.PI; // 180°
-  const endRad = Math.PI - (angle * Math.PI) / 180;
-  const x1 = cx + r * Math.cos(startRad);
-  const y1 = cy + r * Math.sin(startRad);
-  const x2 = cx + r * Math.cos(endRad);
-  const y2 = cy + r * Math.sin(endRad);
-  const largeArc = angle > 180 ? 1 : 0;
-
-  const color =
-    clamped < 50 ? '#10b981' : clamped < 80 ? '#f59e0b' : '#ef4444';
-
-  return (
-    <div className="relative">
-      <svg viewBox="0 0 200 120" className="w-full max-w-sm mx-auto">
-        {/* Background arc */}
-        <path
-          d="M 20 100 A 80 80 0 0 1 180 100"
-          fill="none"
-          stroke="#e2e8f0"
-          strokeWidth="14"
-          strokeLinecap="round"
-        />
-        {/* Value arc */}
-        {angle > 0 && (
-          <motion.path
-            initial={{ pathLength: 0 }}
-            animate={{ pathLength: 1 }}
-            transition={{ duration: 0.7, ease: 'easeOut' }}
-            d={`M ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2}`}
-            fill="none"
-            stroke={color}
-            strokeWidth="14"
-            strokeLinecap="round"
-          />
-        )}
-        {/* Big percentage text */}
-        <text
-          x="100"
-          y="86"
-          textAnchor="middle"
-          fontSize="32"
-          fontWeight="700"
-          fill="#0f172a"
-        >
-          {clamped.toFixed(0)}%
-        </text>
-        <text
-          x="100"
-          y="108"
-          textAnchor="middle"
-          fontSize="12"
-          fill="#64748b"
-        >
-          OCCUPIED
-        </text>
-      </svg>
-    </div>
-  );
-}
-
-const DONUT_COLORS = {
-  free: '#10b981',
-  reserved: '#f59e0b',
-  occupied: '#3b82f6',
-} as const;
+import { Card } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
+import { PageHeader, SectionHeader } from '@/components/ui/PageHeader';
+import { RadialGauge } from '@/components/charts/RadialGauge';
+import { OccupancyDonut } from '@/components/charts/OccupancyDonut';
 
 export default function LoadLevelPage() {
   const load = useQuery({
@@ -107,38 +32,30 @@ export default function LoadLevelPage() {
     refetchInterval: 60_000,
   });
 
-  const donutData = load.data
-    ? [
-        { name: 'Occupied', value: load.data.occupied, color: DONUT_COLORS.occupied },
-        { name: 'Reserved', value: load.data.reserved, color: DONUT_COLORS.reserved },
-        { name: 'Free', value: load.data.free, color: DONUT_COLORS.free },
-      ].filter((d) => d.value > 0)
-    : [];
-
   const timelineData = (hourly.data || []).map((p) => ({
     hour: format(new Date(p.hour), 'HH:mm'),
     occupancy: Math.round(p.occupancy_percent),
     occupied: p.occupied,
   }));
 
+  const occupancyPct = load.data?.occupancy_percent ?? 0;
+  const tone = occupancyPct < 50 ? 'success' : occupancyPct < 80 ? 'accent' : 'danger';
+
   return (
     <div className="space-y-6">
-      <header className="flex items-center gap-3">
-        <div className="h-11 w-11 rounded-xl bg-accent-100 flex items-center justify-center">
-          <GaugeIcon className="h-5 w-5 text-accent-600" />
-        </div>
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
-            Load level
-          </h1>
-          <p className="text-slate-500 text-sm flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 text-emerald-700">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              Live · gauge refreshes every 5s
+      <PageHeader
+        eyebrow="Operations"
+        title={
+          <span className="inline-flex items-center gap-3">
+            <span className="h-10 w-10 rounded-2xl bg-accent-50 border border-accent-100 flex items-center justify-center text-accent-600">
+              <GaugeIcon className="h-5 w-5" />
             </span>
-          </p>
-        </div>
-      </header>
+            Load level
+          </span>
+        }
+        description="Live gauge refreshes every 5 seconds"
+        actions={<Badge tone="success" dot size="lg">Live</Badge>}
+      />
 
       {load.isLoading && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
@@ -151,88 +68,70 @@ export default function LoadLevelPage() {
         <>
           <section className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             {/* Gauge */}
-            <div className="rounded-3xl bg-white border border-slate-100 p-6 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
-              <h2 className="text-sm font-semibold text-slate-900 mb-3">
-                Occupancy
-              </h2>
-              <Gauge percent={load.data.occupancy_percent} />
-              <div className="grid grid-cols-3 gap-3 mt-2 text-center">
-                <div>
-                  <p className="text-xs text-slate-500">Occupied</p>
-                  <p className="text-xl font-bold text-slate-900 tabular-nums">
-                    {load.data.occupied}
-                  </p>
+            <Card variant="default" padding="xl" className="flex flex-col items-center">
+              <SectionHeader title="Occupancy" className="w-full" />
+              <div className="my-2">
+                <RadialGauge
+                  value={occupancyPct}
+                  size={220}
+                  thickness={18}
+                  tone={tone}
+                  label="Occupied"
+                  sublabel={`${load.data.free} free of ${load.data.total}`}
+                />
+              </div>
+              <div className="grid grid-cols-3 gap-3 mt-3 text-center w-full">
+                <div className="rounded-2xl bg-surface-50 border border-surface-200 p-3">
+                  <p className="text-[10px] uppercase tracking-wider text-ink-500 font-semibold">Occupied</p>
+                  <p className="font-display text-xl font-bold text-ink-900 tabular">{load.data.occupied}</p>
                 </div>
-                <div>
-                  <p className="text-xs text-slate-500">Reserved</p>
-                  <p className="text-xl font-bold text-slate-900 tabular-nums">
-                    {load.data.reserved}
-                  </p>
+                <div className="rounded-2xl bg-warning-50 border border-warning-100 p-3">
+                  <p className="text-[10px] uppercase tracking-wider text-warning-600 font-semibold">Reserved</p>
+                  <p className="font-display text-xl font-bold text-warning-600 tabular">{load.data.reserved}</p>
                 </div>
-                <div>
-                  <p className="text-xs text-slate-500">Free</p>
-                  <p className="text-xl font-bold text-slate-900 tabular-nums">
-                    {load.data.free}
-                  </p>
+                <div className="rounded-2xl bg-success-50 border border-success-100 p-3">
+                  <p className="text-[10px] uppercase tracking-wider text-success-700 font-semibold">Free</p>
+                  <p className="font-display text-xl font-bold text-success-700 tabular">{load.data.free}</p>
                 </div>
               </div>
-            </div>
+            </Card>
 
             {/* Donut */}
-            <div className="rounded-3xl bg-white border border-slate-100 p-6 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
-              <h2 className="text-sm font-semibold text-slate-900 mb-3">
-                Distribution
-              </h2>
-              {donutData.length === 0 ? (
-                <p className="text-sm text-slate-500 py-10 text-center">
-                  No data yet.
-                </p>
-              ) : (
-                <div className="h-72">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={donutData}
-                        dataKey="value"
-                        nameKey="name"
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={100}
-                        paddingAngle={3}
-                      >
-                        {donutData.map((entry, i) => (
-                          <Cell key={i} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip
-                        contentStyle={{
-                          borderRadius: 12,
-                          border: '1px solid #e2e8f0',
-                          fontSize: 12,
-                        }}
-                      />
-                      <Legend
-                        verticalAlign="bottom"
-                        wrapperStyle={{ fontSize: 12 }}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
-            </div>
+            <Card variant="default" padding="xl" className="flex flex-col items-center">
+              <SectionHeader title="Distribution" className="w-full" />
+              <div className="my-2 flex-1 flex items-center justify-center">
+                <OccupancyDonut
+                  size={220}
+                  thickness={22}
+                  segments={[
+                    { label: 'Occupied', value: load.data.occupied, color: '#5d52f7' },
+                    { label: 'Reserved', value: load.data.reserved, color: '#f59e0b' },
+                    { label: 'Free', value: load.data.free, color: '#10b981' },
+                  ]}
+                  centerValue={load.data.total}
+                  centerLabel="Total spaces"
+                />
+              </div>
+              <div className="grid grid-cols-3 gap-2 w-full mt-3">
+                <Legend color="bg-brand-500" label="Occupied" value={load.data.occupied} />
+                <Legend color="bg-warning-500" label="Reserved" value={load.data.reserved} />
+                <Legend color="bg-success-500" label="Free" value={load.data.free} />
+              </div>
+            </Card>
           </section>
 
           {/* 24h timeline */}
-          <section className="rounded-3xl bg-white border border-slate-100 p-6 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-semibold text-slate-900">
-                Last 24 hours · occupancy %
-              </h2>
-              {hourly.isFetching && (
-                <span className="text-xs text-slate-500">refreshing…</span>
-              )}
-            </div>
+          <Card variant="default" padding="xl">
+            <SectionHeader
+              title="Last 24 hours · occupancy %"
+              actions={
+                hourly.isFetching ? (
+                  <Badge tone="neutral" size="md">Refreshing…</Badge>
+                ) : (
+                  <Badge tone="neutral" size="md">Updated</Badge>
+                )
+              }
+            />
             {hourly.isLoading ? (
               <ChartSkeleton height={288} />
             ) : (
@@ -241,33 +140,34 @@ export default function LoadLevelPage() {
                   <AreaChart data={timelineData}>
                     <defs>
                       <linearGradient id="loadColor" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.45} />
-                        <stop offset="100%" stopColor="#3b82f6" stopOpacity={0} />
+                        <stop offset="0%" stopColor="#5d52f7" stopOpacity={0.5} />
+                        <stop offset="100%" stopColor="#5d52f7" stopOpacity={0} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-surface-200)" />
                     <XAxis
                       dataKey="hour"
-                      tick={{ fontSize: 11, fill: '#64748b' }}
+                      tick={{ fontSize: 11, fill: 'var(--color-ink-500)' }}
                       interval="preserveStartEnd"
                     />
                     <YAxis
-                      tick={{ fontSize: 11, fill: '#64748b' }}
+                      tick={{ fontSize: 11, fill: 'var(--color-ink-500)' }}
                       domain={[0, 100]}
                       unit="%"
                     />
                     <Tooltip
                       contentStyle={{
-                        borderRadius: 12,
-                        border: '1px solid #e2e8f0',
+                        borderRadius: 14,
+                        border: '1px solid var(--color-surface-200)',
                         fontSize: 12,
+                        boxShadow: '0 8px 28px rgba(13,13,24,0.10)',
                       }}
                       formatter={(v) => `${v}%`}
                     />
                     <Area
                       type="monotone"
                       dataKey="occupancy"
-                      stroke="#3b82f6"
+                      stroke="#5d52f7"
                       strokeWidth={2.5}
                       fill="url(#loadColor)"
                     />
@@ -275,9 +175,31 @@ export default function LoadLevelPage() {
                 </ResponsiveContainer>
               </div>
             )}
-          </section>
+          </Card>
         </>
       )}
+    </div>
+  );
+}
+
+function Legend({
+  color,
+  label,
+  value,
+}: {
+  color: string;
+  label: string;
+  value: number;
+}) {
+  return (
+    <div className="rounded-xl bg-surface-50 border border-surface-200 p-2 text-center">
+      <div className="flex items-center justify-center gap-1.5">
+        <span className={`h-2 w-2 rounded-full ${color}`} />
+        <span className="text-[10px] uppercase font-semibold text-ink-500 tracking-wider">
+          {label}
+        </span>
+      </div>
+      <p className="font-display text-sm font-bold text-ink-900 tabular mt-0.5">{value}</p>
     </div>
   );
 }

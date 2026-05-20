@@ -19,7 +19,7 @@ import { reportsApi } from '@/api/reports.api';
 
 const STATUS_COLORS = {
   used: '#10b981',
-  cancelled: '#ef4444',
+  cancelled: '#f43f5e',
   noshow: '#94a3b8',
 };
 
@@ -33,14 +33,14 @@ function Stat({
   hint?: string;
 }) {
   return (
-    <div className="rounded-2xl bg-white border border-slate-100 p-5">
-      <p className="text-xs uppercase tracking-wider text-slate-500 font-medium">
+    <div className="rounded-3xl bg-surface-0 border border-surface-200 p-5 shadow-card">
+      <p className="text-[11px] uppercase tracking-[0.08em] text-ink-500 font-semibold">
         {label}
       </p>
-      <p className="text-3xl font-bold text-slate-900 tabular-nums mt-1">
+      <p className="font-display text-3xl font-bold text-ink-900 tabular mt-1">
         {value}
       </p>
-      {hint && <p className="text-xs text-slate-500 mt-1">{hint}</p>}
+      {hint && <p className="text-xs text-ink-500 mt-1">{hint}</p>}
     </div>
   );
 }
@@ -108,12 +108,12 @@ export function ReservationsReport({ month }: { month: string }) {
       </section>
 
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <div className="rounded-3xl bg-white border border-slate-100 p-6">
-          <h3 className="text-sm font-semibold text-slate-900 mb-3">
+        <div className="rounded-3xl bg-surface-0 border border-surface-200 p-6 shadow-card">
+          <h3 className="font-display text-base font-semibold text-ink-900 mb-3">
             Reservation outcomes
           </h3>
           {donutData.length === 0 ? (
-            <p className="text-sm text-slate-500 py-10 text-center">
+            <p className="text-sm text-ink-500 py-10 text-center">
               No reservations yet.
             </p>
           ) : (
@@ -136,9 +136,10 @@ export function ReservationsReport({ month }: { month: string }) {
                   </Pie>
                   <Tooltip
                     contentStyle={{
-                      borderRadius: 12,
-                      border: '1px solid #e2e8f0',
+                      borderRadius: 14,
+                      border: '1px solid var(--color-surface-200)',
                       fontSize: 12,
+                      boxShadow: '0 8px 28px rgba(13,13,24,0.10)',
                     }}
                   />
                   <Legend
@@ -151,8 +152,8 @@ export function ReservationsReport({ month }: { month: string }) {
           )}
         </div>
 
-        <div className="rounded-3xl bg-white border border-slate-100 p-6">
-          <h3 className="text-sm font-semibold text-slate-900 mb-3">
+        <div className="rounded-3xl bg-surface-0 border border-surface-200 p-6 shadow-card">
+          <h3 className="font-display text-base font-semibold text-ink-900 mb-3">
             Reservations per day
           </h3>
           <div className="h-72">
@@ -160,21 +161,22 @@ export function ReservationsReport({ month }: { month: string }) {
               <AreaChart data={timelineData}>
                 <defs>
                   <linearGradient id="resArea" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#10b981" stopOpacity={0.45} />
+                    <stop offset="0%" stopColor="#10b981" stopOpacity={0.5} />
                     <stop offset="100%" stopColor="#10b981" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey="day" tick={{ fontSize: 11, fill: '#64748b' }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-surface-200)" />
+                <XAxis dataKey="day" tick={{ fontSize: 11, fill: 'var(--color-ink-500)' }} />
                 <YAxis
-                  tick={{ fontSize: 11, fill: '#64748b' }}
+                  tick={{ fontSize: 11, fill: 'var(--color-ink-500)' }}
                   allowDecimals={false}
                 />
                 <Tooltip
                   contentStyle={{
-                    borderRadius: 12,
-                    border: '1px solid #e2e8f0',
+                    borderRadius: 14,
+                    border: '1px solid var(--color-surface-200)',
                     fontSize: 12,
+                    boxShadow: '0 8px 28px rgba(13,13,24,0.10)',
                   }}
                   labelFormatter={(d) => `Day ${d}`}
                 />
