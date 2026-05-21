@@ -167,7 +167,7 @@ export default function AttendantDashboard() {
             <Activity className="h-4 w-4 text-white/50" />
           </div>
           <h3 className="relative font-display text-lg font-semibold text-white tracking-tight self-start">
-            Facility occupancy
+            Parking occupancy
           </h3>
           <p className="relative text-xs text-white/60 mt-0.5 self-start">
             Updates every 10 seconds
@@ -208,7 +208,7 @@ export default function AttendantDashboard() {
                   Live
                 </Badge>
                 <h3 className="font-display text-lg font-semibold tracking-tight text-white">
-                  Facility map
+                  Live 3D Parking Map
                 </h3>
                 <p className="text-xs text-white/60 mt-0.5">
                   Drag to rotate · scroll to zoom · reservations not shown

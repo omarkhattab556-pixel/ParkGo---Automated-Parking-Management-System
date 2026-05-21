@@ -245,7 +245,7 @@ export default function ManagerDashboard() {
           className="min-h-[420px] flex flex-col"
         >
           <SectionHeader
-            title="Live facility map"
+            title="Live 3D Parking Map"
             description="Drag to orbit · scroll to zoom"
             actions={
               <div className="flex items-center gap-2">

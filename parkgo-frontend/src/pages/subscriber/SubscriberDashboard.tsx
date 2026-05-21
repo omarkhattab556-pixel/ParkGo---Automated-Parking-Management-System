@@ -180,7 +180,7 @@ export default function SubscriberDashboard() {
                   Live
                 </Badge>
                 <h3 className="font-display text-lg font-semibold tracking-tight text-white">
-                  Facility map
+                  Live 3D Parking Map
                 </h3>
                 <p className="text-xs text-white/60 mt-0.5">
                   Drag to rotate · scroll to zoom

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -45,13 +45,6 @@ export default function PickUpCarPage() {
   const pickUp = usePickUp();
   const extend = useExtendParking();
   const lostCode = useLostCode();
-
-  useEffect(() => {
-    if (activeParking.data && !codeInput) {
-      setCodeInput(String(activeParking.data.confirmation_code));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeParking.data?.confirmation_code]);
 
   const active = activeParking.data;
   const elapsedMinutes = active
