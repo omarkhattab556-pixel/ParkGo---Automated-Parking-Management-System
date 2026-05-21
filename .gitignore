@@ -17,8 +17,8 @@ build/
 */dist/
 */build/
 
-.claude
-.PARKGO_PROJECTS_PLAN.md
+.claude/
+PARKGO_PROJECT_PLAN.md
 
 # Logs
 logs/
