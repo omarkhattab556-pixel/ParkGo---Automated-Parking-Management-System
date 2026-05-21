@@ -17,6 +17,9 @@ build/
 */dist/
 */build/
 
+.claude
+.PARKGO_PROJECTS_PLAN.md
+
 # Logs
 logs/
 *.log
