@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -7,6 +7,7 @@ import {
   AlertTriangle,
   MapPin,
   Cog,
+  Layers,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -19,6 +20,7 @@ import { cn } from '@/lib/utils';
 
 type Target =
   | { kind: 'space'; id: number; label: string }
+  | { kind: 'floor'; id: string; label: string }
   | { kind: 'installer'; id: number; label: string }
   | null;
 
@@ -60,11 +62,50 @@ export default function RemoveFacilityPage() {
     onSettled: () => setConfirm(null),
   });
 
+  const removeFloorMut = useMutation({
+    mutationFn: (location: string) => facilityApi.removeFloor(location),
+    onSuccess: (data) => {
+      toast.success(
+        `Floor "${data.removed_location}" removed (${data.removed_spaces} spaces)`
+      );
+      qc.invalidateQueries({ queryKey: ['facility'] });
+    },
+    onError: (err: { error?: string; message?: string }) => {
+      toast.error(err.error || err.message || 'Remove floor failed');
+    },
+    onSettled: () => setConfirm(null),
+  });
+
   const doRemove = () => {
     if (!confirm) return;
     if (confirm.kind === 'space') removeSpace.mutate(confirm.id);
+    else if (confirm.kind === 'floor') removeFloorMut.mutate(confirm.id);
     else removeInstaller.mutate(confirm.id);
   };
+
+  /* ---- Group spaces by floor (location string) ---- */
+  const spacesByFloor = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        location: string;
+        spaces: NonNullable<typeof spaces.data>;
+        anyLocked: boolean;
+      }
+    >();
+    (spaces.data || []).forEach((s) => {
+      const key = (s.location && s.location.trim()) || 'Unzoned';
+      if (!map.has(key)) {
+        map.set(key, { location: key, spaces: [], anyLocked: false });
+      }
+      const b = map.get(key)!;
+      b.spaces.push(s);
+      if (s.in_use || s.reserved || s.is_occupied) b.anyLocked = true;
+    });
+    return Array.from(map.values()).sort((a, b) =>
+      a.location.localeCompare(b.location)
+    );
+  }, [spaces.data]);
 
   return (
     <div className="space-y-6">
@@ -81,8 +122,8 @@ export default function RemoveFacilityPage() {
         description="Decommission spaces or installers · busy/occupied ones are blocked"
       />
 
-      {/* Spaces */}
-      <section>
+      {/* Spaces — grouped by floor */}
+      <section className="space-y-5">
         <SectionHeader
           title={
             <span className="inline-flex items-center gap-2">
@@ -102,47 +143,78 @@ export default function RemoveFacilityPage() {
         {spaces.data && spaces.data.length === 0 && (
           <p className="text-sm text-slate-500 italic">No spaces configured.</p>
         )}
-        {spaces.data && spaces.data.length > 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
-            {spaces.data.map((s) => {
-              const locked = s.in_use || s.reserved || s.is_occupied;
-              return (
-                <motion.button
-                  layout
-                  key={s.space_number}
-                  disabled={locked}
-                  onClick={() =>
-                    setConfirm({
-                      kind: 'space',
-                      id: s.space_number,
-                      label: `Space #${s.space_number}`,
-                    })
-                  }
-                  className={cn(
-                    'rounded-2xl border p-3 text-left transition-all',
-                    locked
-                      ? 'bg-surface-100 border-surface-200 text-ink-500 cursor-not-allowed'
-                      : 'bg-surface-0 border-surface-200 hover:border-danger-300 hover:bg-danger-50/50 hover:-translate-y-0.5 shadow-soft'
-                  )}
-                >
-                  <p className="text-[10px] text-ink-500 uppercase tracking-wider font-semibold">{s.location || '—'}</p>
-                  <p className="font-display text-lg font-bold text-ink-900 tabular">
-                    #{s.space_number}
-                  </p>
-                  <p className="text-[10px] mt-1 uppercase tracking-wider font-semibold text-ink-500">
-                    {s.in_use
-                      ? 'In use'
-                      : s.reserved
-                      ? 'Reserved'
-                      : s.is_occupied
-                      ? 'Occupied'
-                      : 'Free'}
-                  </p>
-                </motion.button>
-              );
-            })}
+        {spacesByFloor.map((group) => (
+          <div key={group.location} className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Layers className="h-4 w-4 text-ink-500" />
+                <p className="font-display font-bold text-ink-900">
+                  Floor "{group.location}"
+                </p>
+                <Badge tone="neutral" size="sm">
+                  {group.spaces.length} spaces
+                </Badge>
+              </div>
+              <Button
+                variant="danger"
+                size="sm"
+                disabled={group.anyLocked}
+                aria-label={`Remove floor ${group.location}`}
+                onClick={() =>
+                  setConfirm({
+                    kind: 'floor',
+                    id: group.location,
+                    label: `Floor "${group.location}" (${group.spaces.length} spaces)`,
+                  })
+                }
+              >
+                <Trash2 className="h-4 w-4" />
+                Remove floor
+              </Button>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
+              {group.spaces.map((s) => {
+                const locked = s.in_use || s.reserved || s.is_occupied;
+                return (
+                  <motion.button
+                    layout
+                    key={s.space_number}
+                    disabled={locked}
+                    onClick={() =>
+                      setConfirm({
+                        kind: 'space',
+                        id: s.space_number,
+                        label: `Space #${s.space_number}`,
+                      })
+                    }
+                    className={cn(
+                      'rounded-2xl border p-3 text-left transition-all',
+                      locked
+                        ? 'bg-surface-100 border-surface-200 text-ink-500 cursor-not-allowed'
+                        : 'bg-surface-0 border-surface-200 hover:border-danger-300 hover:bg-danger-50/50 hover:-translate-y-0.5 shadow-soft'
+                    )}
+                  >
+                    <p className="text-[10px] text-ink-500 uppercase tracking-wider font-semibold">
+                      {s.location || '—'}
+                    </p>
+                    <p className="font-display text-lg font-bold text-ink-900 tabular">
+                      #{s.space_number}
+                    </p>
+                    <p className="text-[10px] mt-1 uppercase tracking-wider font-semibold text-ink-500">
+                      {s.in_use
+                        ? 'In use'
+                        : s.reserved
+                        ? 'Reserved'
+                        : s.is_occupied
+                        ? 'Occupied'
+                        : 'Free'}
+                    </p>
+                  </motion.button>
+                );
+              })}
+            </div>
           </div>
-        )}
+        ))}
       </section>
 
       {/* Installers */}
@@ -249,7 +321,11 @@ export default function RemoveFacilityPage() {
                 <Button
                   variant="danger"
                   fullWidth
-                  loading={removeSpace.isPending || removeInstaller.isPending}
+                  loading={
+                    removeSpace.isPending ||
+                    removeInstaller.isPending ||
+                    removeFloorMut.isPending
+                  }
                   onClick={doRemove}
                 >
                   Yes, remove

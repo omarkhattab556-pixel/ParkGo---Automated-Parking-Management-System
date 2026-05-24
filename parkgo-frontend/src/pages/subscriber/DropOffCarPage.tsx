@@ -8,6 +8,7 @@ import {
   Hash,
   KeyRound,
   AlertTriangle,
+  Mail,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -17,7 +18,6 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { GlowOrbs } from '@/components/ui/GlowOrbs';
 import { InstallerAnimation } from '@/components/common/InstallerAnimation';
-import { CodeDisplay } from '@/components/common/CodeDisplay';
 import { useDropOff } from '@/hooks/useParking';
 import type { DropOffResult } from '@/api/parking.api';
 
@@ -259,19 +259,19 @@ export default function DropOffCarPage() {
                 </p>
               </div>
 
-              <CodeDisplay
-                code={result.confirmation_code}
-                label={
-                  result.had_reservation
-                    ? 'Your code (same as reservation)'
-                    : 'Save this code for pickup'
-                }
-                hint={
-                  result.had_reservation
-                    ? 'Use this code when you return'
-                    : 'Also sent to your email'
-                }
-              />
+              <div className="rounded-2xl bg-brand-50 border border-brand-100 p-4 flex items-start gap-3">
+                <span className="h-10 w-10 rounded-2xl bg-brand-100 border border-brand-200 flex items-center justify-center text-brand-700 shrink-0">
+                  <Mail className="h-5 w-5" />
+                </span>
+                <div className="text-sm text-brand-700">
+                  <p className="font-semibold mb-0.5">
+                    Your pickup code was sent to your email
+                  </p>
+                  <p className="text-brand-700/85">
+                    Forgot it? Resend it from your dashboard at any time.
+                  </p>
+                </div>
+              </div>
 
               <Button fullWidth size="lg" onClick={() => navigate('/subscriber')}>
                 Back to dashboard

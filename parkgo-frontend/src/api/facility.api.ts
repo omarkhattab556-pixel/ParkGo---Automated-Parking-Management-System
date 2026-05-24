@@ -4,11 +4,24 @@ import type { Installer, ParkingSpace } from '@/types';
 export interface SpaceWithStatus extends ParkingSpace {
   in_use: boolean;
   reserved: boolean;
+  is_mine?: boolean;
+  occupant_name?: string;
 }
 
 export interface AddSpacePayload {
   space_number?: number;
   location?: string;
+}
+
+export interface FloorSummary {
+  location: string;
+  total: number;
+  occupied: number;
+}
+
+export interface AddFloorPayload {
+  location: string;
+  spaces: number;
 }
 
 export interface AddInstallerPayload {
@@ -87,6 +100,27 @@ export const facilityApi = {
 
   removeSpace: async (num: number): Promise<{ success: true; removed: number }> => {
     const { data } = await api.delete(`/facility/spaces/${num}`);
+    return data;
+  },
+
+  listFloors: async (): Promise<FloorSummary[]> => {
+    const { data } = await api.get<FloorSummary[]>('/facility/floors');
+    return data;
+  },
+
+  addFloor: async (
+    payload: AddFloorPayload
+  ): Promise<{ location: string; created_count: number; spaces: ParkingSpace[] }> => {
+    const { data } = await api.post('/facility/floors', payload);
+    return data;
+  },
+
+  removeFloor: async (
+    location: string
+  ): Promise<{ success: true; removed_location: string; removed_spaces: number }> => {
+    const { data } = await api.delete(
+      `/facility/floors/${encodeURIComponent(location)}`
+    );
     return data;
   },
 

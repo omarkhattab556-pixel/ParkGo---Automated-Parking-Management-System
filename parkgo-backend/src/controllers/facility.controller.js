@@ -130,40 +130,239 @@ export const callMaintenance = async (req, res) => {
 
 /**
  * GET /api/facility/spaces
- * List all parking spaces (with their occupancy + active reservation/parking info).
+ * List all parking spaces with occupancy + occupant info (manager/attendant see names).
+ * Subscribers get a sanitized payload: only their own occupied space carries identity.
  */
-export const listSpaces = async (_req, res, next) => {
+export const listSpaces = async (req, res, next) => {
   try {
+    const role = req.user?.user_type;
+    const userId = req.user?.id;
+
     const { data: spaces, error } = await supabase
       .from('parking_space')
       .select('*')
-      .order('space_number');
+      .order('location', { ascending: true })
+      .order('space_number', { ascending: true });
     if (error) throw error;
 
     const nowIso = new Date().toISOString();
-    const [activeParkings, activeReservations] = await Promise.all([
+    const [activeParkingsRes, activeReservationsRes] = await Promise.all([
       supabase
         .from('parking')
-        .select('parking_space')
+        .select('parking_space, subscriber_num, parking_code')
         .is('retrieval_time', null),
       supabase
         .from('reservation')
-        .select('parking_space')
+        .select('parking_space, subscriber_num')
         .eq('status', 'active')
         .gt('reservation_end', nowIso),
     ]);
 
-    const inUse = new Set();
-    const reserved = new Set();
-    (activeParkings.data || []).forEach((p) => inUse.add(p.parking_space));
-    (activeReservations.data || []).forEach((r) => reserved.add(r.parking_space));
+    const parkings = activeParkingsRes.data || [];
+    const reservations = activeReservationsRes.data || [];
 
-    const enriched = (spaces || []).map((s) => ({
-      ...s,
-      in_use: inUse.has(s.space_number),
-      reserved: reserved.has(s.space_number),
-    }));
+    const canSeeOccupants = role === 'manager' || role === 'attendant';
+
+    // Bulk-fetch user names only when staff is viewing.
+    let usersById = {};
+    if (canSeeOccupants) {
+      const ids = [
+        ...new Set([
+          ...parkings.map((p) => p.subscriber_num),
+          ...reservations.map((r) => r.subscriber_num),
+        ]),
+      ].filter(Boolean);
+      if (ids.length > 0) {
+        const { data: users } = await supabase
+          .from('user')
+          .select('id, first_name, last_name')
+          .in('id', ids);
+        usersById = Object.fromEntries((users || []).map((u) => [u.id, u]));
+      }
+    }
+
+    const parkingBySpace = new Map();
+    parkings.forEach((p) => parkingBySpace.set(p.parking_space, p));
+    const reservationBySpace = new Map();
+    reservations.forEach((r) => reservationBySpace.set(r.parking_space, r));
+
+    const enriched = (spaces || []).map((s) => {
+      const p = parkingBySpace.get(s.space_number);
+      const r = reservationBySpace.get(s.space_number);
+      const isMine = !!(
+        (p && userId && p.subscriber_num === userId) ||
+        (r && userId && r.subscriber_num === userId)
+      );
+
+      const base = {
+        ...s,
+        in_use: !!p,
+        reserved: !!r,
+        is_mine: isMine,
+      };
+
+      if (canSeeOccupants) {
+        const owner = p
+          ? usersById[p.subscriber_num]
+          : r
+          ? usersById[r.subscriber_num]
+          : null;
+        if (owner) {
+          base.occupant_name = `${owner.first_name} ${owner.last_name}`;
+        }
+      }
+      return base;
+    });
     return res.json(enriched);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * GET /api/facility/floors
+ * A "floor" is identified by the `location` string on parking_space.
+ * Returns aggregated info per location: total + occupied counts.
+ */
+export const listFloors = async (_req, res, next) => {
+  try {
+    const { data: spaces, error } = await supabase
+      .from('parking_space')
+      .select('location, space_number, is_occupied');
+    if (error) throw error;
+
+    const buckets = new Map();
+    (spaces || []).forEach((s) => {
+      const key = s.location || 'Unzoned';
+      if (!buckets.has(key)) {
+        buckets.set(key, { location: key, total: 0, occupied: 0 });
+      }
+      const b = buckets.get(key);
+      b.total += 1;
+      if (s.is_occupied) b.occupied += 1;
+    });
+    const floors = Array.from(buckets.values()).sort((a, b) =>
+      a.location.localeCompare(b.location)
+    );
+    return res.json(floors);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * POST /api/facility/floors
+ * Body: { location: string, spaces: number }
+ * Creates `spaces` parking spots tagged with the same `location`.
+ * Auto-numbers them continuing the global space_number sequence.
+ */
+export const addFloor = async (req, res, next) => {
+  try {
+    const { location, spaces } = req.body;
+    const trimmed = (location || '').trim();
+    if (!trimmed) {
+      return res.status(400).json({ error: 'location is required' });
+    }
+    if (!Number.isFinite(spaces) || spaces < 1 || spaces > 200) {
+      return res.status(400).json({ error: 'spaces must be 1..200' });
+    }
+
+    const { data: max } = await supabase
+      .from('parking_space')
+      .select('space_number')
+      .order('space_number', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const next_num = (max?.space_number || 0) + 1;
+
+    const rows = [];
+    for (let i = 0; i < spaces; i++) {
+      rows.push({
+        space_number: next_num + i,
+        location: trimmed,
+        is_occupied: false,
+      });
+    }
+    const { data: created, error } = await supabase
+      .from('parking_space')
+      .insert(rows)
+      .select('*');
+    if (error) throw error;
+
+    return res.status(201).json({
+      location: trimmed,
+      created_count: created?.length || 0,
+      spaces: created,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * DELETE /api/facility/floors/:location
+ * Removes all spaces tagged with this location only if all are empty.
+ */
+export const removeFloor = async (req, res, next) => {
+  try {
+    const location = decodeURIComponent(req.params.location || '').trim();
+    if (!location) {
+      return res.status(400).json({ error: 'Invalid location' });
+    }
+
+    const { data: spaces, error: spErr } = await supabase
+      .from('parking_space')
+      .select('space_number, is_occupied')
+      .eq('location', location);
+    if (spErr) throw spErr;
+    if (!spaces || spaces.length === 0) {
+      return res.status(404).json({ error: 'Floor not found or already empty' });
+    }
+
+    if (spaces.some((s) => s.is_occupied)) {
+      return res
+        .status(409)
+        .json({ error: 'Cannot remove floor — some spaces are occupied' });
+    }
+
+    const nums = spaces.map((s) => s.space_number);
+    const { data: activeParking } = await supabase
+      .from('parking')
+      .select('parking_code')
+      .in('parking_space', nums)
+      .is('retrieval_time', null)
+      .limit(1);
+    if ((activeParking?.length || 0) > 0) {
+      return res
+        .status(409)
+        .json({ error: 'Cannot remove floor — active parking session(s) present' });
+    }
+
+    const nowIso = new Date().toISOString();
+    const { data: futureRes } = await supabase
+      .from('reservation')
+      .select('reservation_id')
+      .in('parking_space', nums)
+      .eq('status', 'active')
+      .gt('reservation_end', nowIso)
+      .limit(1);
+    if ((futureRes?.length || 0) > 0) {
+      return res
+        .status(409)
+        .json({ error: 'Cannot remove floor — future reservation(s) exist' });
+    }
+
+    const { error: delErr } = await supabase
+      .from('parking_space')
+      .delete()
+      .eq('location', location);
+    if (delErr) throw delErr;
+
+    return res.json({
+      success: true,
+      removed_location: location,
+      removed_spaces: nums.length,
+    });
   } catch (err) {
     next(err);
   }
@@ -201,7 +400,11 @@ export const addSpace = async (req, res, next) => {
 
     const { data: created, error } = await supabase
       .from('parking_space')
-      .insert({ space_number, location: location || null, is_occupied: false })
+      .insert({
+        space_number,
+        location: location || null,
+        is_occupied: false,
+      })
       .select('*')
       .single();
     if (error) throw error;

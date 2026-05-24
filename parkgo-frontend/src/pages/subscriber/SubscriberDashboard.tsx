@@ -71,20 +71,26 @@ export default function SubscriberDashboard() {
   const activeReservationsCount =
     reservations.data?.filter((r) => r.status === 'active').length ?? 0;
 
-  // Privacy: the subscriber should NOT see where other people are parked.
-  // We pass `view="subscriber"` to ParkingLot3D which strips occupancy data
-  // for spots that aren't the user's own. We still build the full spots list
-  // here so the lot dimensions / layout stay accurate.
+  // The subscriber sees ONLY the floor (location) they're parked on when active;
+  // when idle, the first available floor. `view="subscriber"` strips occupancy
+  // info for other spots so privacy is preserved regardless.
+  const myLocation = useMemo<string | null>(() => {
+    const myParkingSpace = activeParking.data?.parking_space;
+    if (!myParkingSpace) return null;
+    const mySpace = spaces.data?.find((s) => s.space_number === myParkingSpace);
+    return mySpace?.location ?? null;
+  }, [activeParking.data, spaces.data]);
+
   const lotSpots = useMemo<ParkingSpot3D[]>(() => {
     const fromApi = spaces.data ?? [];
-    const total =
-      fromApi.length > 0 ? fromApi.length : load.data?.total ?? 40;
     if (fromApi.length === 0) {
+      const total = load.data?.total ?? 40;
       return Array.from({ length: total }, (_, i) => ({
         space_number: i + 1,
         is_occupied: false,
         is_reserved: false,
         is_mine: activeParking.data?.parking_space === i + 1,
+        location: null,
       }));
     }
     return fromApi.map((s) => ({
@@ -92,6 +98,7 @@ export default function SubscriberDashboard() {
       is_occupied: false,
       is_reserved: false,
       is_mine: activeParking.data?.parking_space === s.space_number,
+      location: s.location,
     }));
   }, [spaces.data, activeParking.data, load.data]);
 
@@ -197,7 +204,13 @@ export default function SubscriberDashboard() {
               </div>
             </div>
             <div className="flex-1 rounded-2xl overflow-hidden bg-gradient-to-br from-ink-800 to-ink-900 border border-white/5">
-              <ParkingLot3D spots={lotSpots} cols={8} view="subscriber" />
+              <ParkingLot3D
+                spots={lotSpots}
+                cols={8}
+                view="subscriber"
+                location={myLocation}
+                hideFloorSwitcher
+              />
             </div>
           </div>
         </BentoCard>

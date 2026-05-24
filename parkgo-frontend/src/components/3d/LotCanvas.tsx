@@ -1,6 +1,6 @@
 import { Suspense, useMemo, useRef, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, ContactShadows, Environment } from '@react-three/drei';
+import { OrbitControls, ContactShadows, Environment, Html } from '@react-three/drei';
 import type { ParkingSpot3D } from './ParkingLot3D';
 import type { Group } from 'three';
 
@@ -237,6 +237,27 @@ function Spot({
             emissiveIntensity={1.5}
           />
         </mesh>
+      )}
+
+      {/* Occupant nameplate (manager/attendant view only) */}
+      {hovered && spot.occupant_name && (
+        <Html
+          position={[0, 1.0 + yLift, 0]}
+          center
+          distanceFactor={9}
+          zIndexRange={[100, 0]}
+          style={{ pointerEvents: 'none' }}
+        >
+          <div
+            className="rounded-lg bg-ink-900/95 text-white px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap shadow-elevated border border-white/10"
+            style={{ transform: 'translateY(-4px)' }}
+          >
+            <div className="text-[9px] uppercase tracking-wider text-white/60">
+              Space #{spot.space_number}
+            </div>
+            <div>{spot.occupant_name}</div>
+          </div>
+        </Html>
       )}
     </group>
   );

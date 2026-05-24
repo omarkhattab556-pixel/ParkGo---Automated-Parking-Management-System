@@ -113,6 +113,8 @@ export default function AttendantDashboard() {
       is_occupied: s.in_use,
       is_reserved: false,
       is_mine: false,
+      location: s.location,
+      occupant_name: s.occupant_name,
     }));
   }, [spaces.data]);
 

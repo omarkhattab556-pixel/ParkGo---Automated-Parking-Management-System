@@ -12,6 +12,9 @@ import {
   listInstallers,
   addInstaller,
   removeInstaller,
+  listFloors,
+  addFloor,
+  removeFloor,
 } from '../controllers/facility.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import { requireRole } from '../middleware/role.middleware.js';
@@ -41,6 +44,11 @@ const addSpaceSchema = z.object({
   location: z.string().min(1).max(50).optional(),
 });
 
+const addFloorSchema = z.object({
+  location: z.string().min(1).max(50),
+  spaces: z.number().int().positive().max(200),
+});
+
 const addInstallerSchema = z.object({
   installer_name: z.string().min(2).max(50),
 });
@@ -63,6 +71,26 @@ router.delete(
   authenticate,
   requireRole('manager'),
   removeSpace
+);
+
+router.get(
+  '/floors',
+  authenticate,
+  requireRole('attendant', 'manager', 'subscriber'),
+  listFloors
+);
+router.post(
+  '/floors',
+  authenticate,
+  requireRole('manager'),
+  validate(addFloorSchema),
+  addFloor
+);
+router.delete(
+  '/floors/:location',
+  authenticate,
+  requireRole('manager'),
+  removeFloor
 );
 
 router.get('/installers', authenticate, requireRole('manager'), listInstallers);
