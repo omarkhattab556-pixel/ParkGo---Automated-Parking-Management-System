@@ -22,8 +22,24 @@ export const JWT = {
   EXPIRES_IN: process.env.JWT_EXPIRES_IN || '7d',
 };
 
+// Origins always allowed, even if FRONTEND_URL is unset on the host.
+const DEFAULT_ORIGINS = [
+  'https://parkgo-frontend.onrender.com',
+  'http://localhost:5173',
+  'http://localhost:3000',
+];
+
+// FRONTEND_URL may be a single URL or a comma-separated list.
+const envOrigins = (process.env.FRONTEND_URL || '')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+
 export const APP = {
   PORT: num(process.env.PORT, 5000),
   NODE_ENV: process.env.NODE_ENV || 'development',
-  FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:5173',
+  // Primary frontend URL (used for logging / email links).
+  FRONTEND_URL: envOrigins[0] || DEFAULT_ORIGINS[0],
+  // Full allow-list used by CORS.
+  CORS_ORIGINS: Array.from(new Set([...envOrigins, ...DEFAULT_ORIGINS])),
 };

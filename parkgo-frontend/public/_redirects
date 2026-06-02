@@ -1,0 +1,4 @@
+# SPA fallback: serve index.html for every path so React Router (BrowserRouter)
+# can handle client-side routing. Without this, refreshing or opening a deep
+# link like /login or /subscriber returns 404 on a static host.
+/*    /index.html   200

@@ -25,7 +25,12 @@ const app = express();
 app.use(helmet());
 app.use(
   cors({
-    origin: APP.FRONTEND_URL,
+    origin(origin, cb) {
+      // Allow non-browser clients (curl, health checks) that send no Origin,
+      // and any origin in the configured allow-list.
+      if (!origin || APP.CORS_ORIGINS.includes(origin)) return cb(null, true);
+      return cb(null, false);
+    },
     credentials: true,
   })
 );

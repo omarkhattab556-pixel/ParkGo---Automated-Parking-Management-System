@@ -1,0 +1,61 @@
+# Render Blueprint for ParkGo (https://render.com/docs/blueprint-spec)
+#
+# NOTE: Your two services already exist (created manually in the dashboard), so
+# this file does NOT reconfigure them automatically. It documents the correct
+# setup and lets the whole stack be recreated from scratch via "New +" ->
+# "Blueprint". The single thing the existing frontend still needs is the
+# rewrite rule below (Settings -> Redirects/Rewrites in the dashboard).
+
+services:
+  # ---------- Backend API (Express + Supabase) ----------
+  - type: web
+    name: parkgo-backend
+    runtime: node
+    rootDir: parkgo-backend
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: FRONTEND_URL
+        value: https://parkgo-frontend.onrender.com
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      # Secrets — set these in the dashboard, do NOT commit real values.
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_FROM
+        sync: false
+
+  # ---------- Frontend (Vite SPA, static site) ----------
+  - type: web
+    name: parkgo-frontend
+    runtime: static
+    rootDir: parkgo-frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://parkgo-automated-parking-management.onrender.com/api
+    # This is the fix for the 404-on-refresh / deep-link problem:
+    # serve index.html for every route so React Router can take over.
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
