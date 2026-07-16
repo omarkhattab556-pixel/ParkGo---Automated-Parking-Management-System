@@ -370,7 +370,10 @@ export const updateOwnDetails = async (req, res, next) => {
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     const ok = await bcrypt.compare(current_password, user.password);
-    if (!ok) return res.status(401).json({ error: 'Current password is incorrect' });
+    // 400 (not 401): the auth token is valid — only the supplied password field
+    // is wrong. Returning 401 would make the client treat it as an expired
+    // session and log the user out.
+    if (!ok) return res.status(400).json({ error: 'Current password is incorrect' });
 
     const userPatch = {};
     if (phone_number && phone_number !== '') userPatch.phone_number = phone_number;

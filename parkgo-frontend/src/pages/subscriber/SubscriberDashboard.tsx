@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
@@ -12,6 +12,8 @@ import {
   CalendarClock,
   ShieldCheck,
   Clock,
+  Timer as TimerIcon,
+  AlarmClockOff,
 } from 'lucide-react';
 
 import { useAuthStore } from '@/store/authStore';
@@ -19,9 +21,9 @@ import {
   useFacilityLoad,
   useMyActiveParking,
   useMyReservations,
-  useMyParkingHistory,
 } from '@/hooks/useParking';
 import { facilityApi } from '@/api/facility.api';
+import { subscriberApi } from '@/api/subscriber.api';
 import { formatCode, formatDateTime } from '@/utils/formatters';
 import { BentoGrid, BentoCard } from '@/components/ui/Bento';
 import { StatTile } from '@/components/ui/StatTile';
@@ -55,12 +57,32 @@ const actions = [
   },
 ];
 
+// Formats a positive minute count as "Hh Mm" / "Mm", or "0m" when non-positive.
+function formatRemaining(totalMinutes: number): string {
+  const clamped = Math.max(0, Math.round(totalMinutes));
+  const h = Math.floor(clamped / 60);
+  const m = clamped % 60;
+  if (h === 0) return `${m}m`;
+  return `${h}h ${m.toString().padStart(2, '0')}m`;
+}
+
 export default function SubscriberDashboard() {
   const user = useAuthStore((s) => s.user);
   const load = useFacilityLoad(10_000);
   const activeParking = useMyActiveParking();
   const reservations = useMyReservations();
-  const history = useMyParkingHistory();
+
+  const profile = useQuery({
+    queryKey: ['subscriber', 'me-profile'],
+    queryFn: () => subscriberApi.myProfile(),
+  });
+
+  // Live clock so the parking timer counts down in real time.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
 
   const spaces = useQuery({
     queryKey: ['facility', 'spaces'],
@@ -103,7 +125,23 @@ export default function SubscriberDashboard() {
   }, [spaces.data, activeParking.data, load.data]);
 
   const occupancyPercent = load.data?.occupancy_percent ?? 0;
-  const monthlySessions = history.data?.length ?? 0;
+
+  // Total delays (איחורים) across the subscriber's history.
+  const delayCount = profile.data?.stats.delay_count ?? 0;
+
+  // Live remaining time for the active parking session, in minutes.
+  // Positive → time left; negative → the driver is in overtime (late).
+  const active = activeParking.data;
+  const timer = useMemo(() => {
+    if (!active) return null;
+    const maxMinutes = active.max_time_minutes ?? 0;
+    const elapsedMs = now - new Date(active.parking_date).getTime();
+    const remainingMinutes = maxMinutes - elapsedMs / 60_000;
+    return {
+      remainingMinutes,
+      isOvertime: remainingMinutes <= 0,
+    };
+  }, [active, now]);
 
   return (
     <div className="space-y-6 md:space-y-8">
@@ -235,28 +273,50 @@ export default function SubscriberDashboard() {
             sublabel={`${load.data?.free ?? 0} of ${load.data?.total ?? 0} spots`}
           />
           <div className="grid grid-cols-2 gap-2 w-full mt-3">
-            <div className="rounded-xl bg-success-50 border border-success-100 p-2.5 text-center">
-              <p className="text-[10px] uppercase tracking-wider font-semibold text-success-700">
-                Free
+            {/* Timer — time left in my active parking session */}
+            <div
+              className={`rounded-xl border p-2.5 text-center ${
+                timer?.isOvertime
+                  ? 'bg-danger-50 border-danger-100'
+                  : 'bg-brand-50 border-brand-100'
+              }`}
+            >
+              <p
+                className={`text-[10px] uppercase tracking-wider font-semibold inline-flex items-center gap-1 ${
+                  timer?.isOvertime ? 'text-danger-700' : 'text-brand-700'
+                }`}
+              >
+                <TimerIcon className="h-3 w-3" />
+                Timer
               </p>
-              <p className="font-display text-lg font-bold text-success-700 tabular">
-                {load.data?.free ?? 0}
+              <p
+                className={`font-display text-lg font-bold tabular ${
+                  timer?.isOvertime ? 'text-danger-700' : 'text-brand-700'
+                }`}
+              >
+                {!timer
+                  ? '—'
+                  : timer.isOvertime
+                    ? `+${formatRemaining(-timer.remainingMinutes)}`
+                    : formatRemaining(timer.remainingMinutes)}
               </p>
             </div>
-            <div className="rounded-xl bg-danger-50 border border-danger-100 p-2.5 text-center">
-              <p className="text-[10px] uppercase tracking-wider font-semibold text-danger-700">
-                Occupied
+            {/* Total delays (איחורים) */}
+            <div className="rounded-xl bg-amber-50 border border-amber-100 p-2.5 text-center">
+              <p className="text-[10px] uppercase tracking-wider font-semibold text-amber-700 inline-flex items-center gap-1">
+                <AlarmClockOff className="h-3 w-3" />
+                Delays
               </p>
-              <p className="font-display text-lg font-bold text-danger-700 tabular">
-                {load.data?.occupied ?? 0}
+              <p className="font-display text-lg font-bold text-amber-700 tabular">
+                {profile.isLoading ? '—' : delayCount}
               </p>
             </div>
           </div>
         </BentoCard>
 
-        {/* My stats trio */}
+        {/* My reservations — full width above the action row */}
         <BentoCard
-          span="col-span-2 md:col-span-3 lg:col-span-4"
+          span="col-span-2 md:col-span-6 lg:col-span-12"
           tone="surface"
           padding="lg"
           delay={0.08}
@@ -271,27 +331,7 @@ export default function SubscriberDashboard() {
           />
         </BentoCard>
 
-        <BentoCard
-          span="col-span-2 md:col-span-3 lg:col-span-4"
-          tone="aurora"
-          padding="lg"
-          delay={0.1}
-          className="relative overflow-hidden text-white"
-        >
-          <GlowOrbs variant="brand" />
-          <div className="relative">
-            <StatTile
-              label="Sessions this month"
-              value={monthlySessions}
-              hint="across all visits"
-              icon={TrendingUp}
-              variant="dark"
-              loading={history.isLoading}
-            />
-          </div>
-        </BentoCard>
-
-        {/* Quick actions — pinned bottom row */}
+        {/* Quick actions — three buttons side by side */}
         {actions.map((a, i) => (
           <BentoCard
             key={a.to}

@@ -23,7 +23,7 @@ import { reservationApi, type CreateReservationResult } from '@/api/reservation.
 import type { AvailabilityResult } from '@/api/reservation.api';
 import { useFacilityLoad } from '@/hooks/useParking';
 import { BUSINESS_RULES } from '@/utils/constants';
-import { formatDateTime } from '@/utils/formatters';
+import { formatDateTime, israelWallClockToUtcIso } from '@/utils/formatters';
 
 const MIN_OFFSET_HOURS = BUSINESS_RULES.MIN_RESERVATION_HOURS_AHEAD;
 const MAX_OFFSET_DAYS = BUSINESS_RULES.MAX_RESERVATION_DAYS_AHEAD;
@@ -60,11 +60,11 @@ export default function ReserveParkingPage() {
   const [availability, setAvailability] = useState<AvailabilityResult | null>(null);
   const [success, setSuccess] = useState<CreateReservationResult | null>(null);
 
+  // Interpret the picked date + time as an Israel wall-clock value and convert
+  // it to the correct UTC instant, independent of the device's timezone.
   const combinedIso = useMemo(() => {
     if (!date || !time) return null;
-    const dt = new Date(`${date}T${time}:00`);
-    if (Number.isNaN(dt.getTime())) return null;
-    return dt.toISOString();
+    return israelWallClockToUtcIso(date, time);
   }, [date, time]);
 
   const validationError = useMemo(() => {

@@ -54,7 +54,7 @@ export const sendReservationCodeEmail = async (user, { code, spaceNumber, reserv
       ${codeBlock(code)}
       <table style="margin: 16px 0; line-height:1.8; font-size:15px;">
         <tr><td>🅿️ <strong>מקום חניה:</strong></td><td>#${spaceNumber}</td></tr>
-        <tr><td>🕐 <strong>מועד הגעה:</strong></td><td>${new Date(reservationStart).toLocaleString('he-IL')}</td></tr>
+        <tr><td>🕐 <strong>מועד הגעה:</strong></td><td>${new Date(reservationStart).toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem' })}</td></tr>
       </table>
       <p style="line-height:1.6; color:#dc2626; font-weight:500;">
         ⚠️ שמור על הקוד - תזדקק לו בעת הגעתך לחניון. אי הגעה תוך 15 דקות תגרור ביטול אוטומטי של ההזמנה.
@@ -87,7 +87,7 @@ export const sendLostCodeEmail = async (user, { code, spaceNumber, parkingDate }
       ${codeBlock(code)}
       <table style="margin: 16px 0; line-height:1.8; font-size:15px;">
         <tr><td>🅿️ <strong>מקום:</strong></td><td>#${spaceNumber}</td></tr>
-        <tr><td>🕐 <strong>זמן חניה:</strong></td><td>החל מ-${new Date(parkingDate).toLocaleString('he-IL')}</td></tr>
+        <tr><td>🕐 <strong>זמן חניה:</strong></td><td>החל מ-${new Date(parkingDate).toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem' })}</td></tr>
       </table>
     `),
     text: `Active parking code: ${code} at space #${spaceNumber}`,
