@@ -7,6 +7,7 @@ import {
   Car,
   Wrench,
   ShieldCheck,
+  UserPlus,
 } from 'lucide-react';
 import type { SidebarItem } from '@/components/layout/Sidebar';
 
@@ -17,6 +18,7 @@ export const managerNavItems: SidebarItem[] = [
   { to: '/manager/reports', label: 'Reports', icon: BarChart3 },
   { to: '/manager/subscribers', label: 'All Subscribers', icon: Users },
   { to: '/manager/active-parkings', label: 'Active Parkings', icon: Car },
-  { to: '/manager/add-attendant', label: 'Add Attendant', icon: ShieldCheck },
+  { to: '/manager/attendants', label: 'Attendants', icon: ShieldCheck },
+  { to: '/manager/add-attendant', label: 'Add Attendant', icon: UserPlus },
   { to: '/manager/maintenance', label: 'Maintenance', icon: Wrench },
 ];

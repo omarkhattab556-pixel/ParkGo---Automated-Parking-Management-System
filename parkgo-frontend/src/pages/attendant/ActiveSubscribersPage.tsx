@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -372,6 +373,21 @@ export default function ActiveSubscribersPage() {
   const [filter, setFilter] = useState<Filter>('all');
   const [openId, setOpenId] = useState<number | null>(null);
 
+  // Allow deep-linking to a subscriber's detail via ?id= (e.g. from the 3D map).
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    const idParam = Number(searchParams.get('id'));
+    if (Number.isFinite(idParam) && idParam > 0) setOpenId(idParam);
+  }, [searchParams]);
+
+  const closeDetail = () => {
+    setOpenId(null);
+    if (searchParams.has('id')) {
+      searchParams.delete('id');
+      setSearchParams(searchParams, { replace: true });
+    }
+  };
+
   const filtered = useMemo<SubscriberListItem[]>(() => {
     if (!data) return [];
     const q = search.trim().toLowerCase();
@@ -512,7 +528,7 @@ export default function ActiveSubscribersPage() {
 
       <AnimatePresence>
         {openId != null && (
-          <SubscriberDetailModal id={openId} onClose={() => setOpenId(null)} />
+          <SubscriberDetailModal id={openId} onClose={closeDetail} />
         )}
       </AnimatePresence>
     </div>

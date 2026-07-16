@@ -17,6 +17,8 @@ export interface ParkingSpot3D {
   location?: string | null;
   /** Manager/attendant only: name of the subscriber occupying this spot. */
   occupant_name?: string;
+  /** Manager/attendant only: id of the occupant, for linking to their profile. */
+  occupant_id?: number;
 }
 
 /**
@@ -49,6 +51,8 @@ interface ParkingLot3DProps {
   onLocationChange?: (location: string) => void;
   /** Disable the built-in floor switcher even when multiple floors exist. */
   hideFloorSwitcher?: boolean;
+  /** Called when an occupied spot is clicked (staff view) — receives the spot. */
+  onSpotClick?: (spot: ParkingSpot3D) => void;
 }
 
 export function ParkingLot3D({
@@ -61,6 +65,7 @@ export function ParkingLot3D({
   location,
   onLocationChange,
   hideFloorSwitcher = false,
+  onSpotClick,
 }: ParkingLot3DProps) {
   const availableLocations = useMemo(() => {
     const set = new Set<string>();
@@ -103,6 +108,7 @@ export function ParkingLot3D({
         is_mine: false,
         location: s.location,
         occupant_name: s.occupant_name,
+        occupant_id: s.occupant_id,
       };
     }
     return s;
@@ -122,6 +128,7 @@ export function ParkingLot3D({
           cols={cols}
           autoRotate={autoRotate}
           showcase={showcase}
+          onSpotClick={onSpotClick}
         />
       </Suspense>
 

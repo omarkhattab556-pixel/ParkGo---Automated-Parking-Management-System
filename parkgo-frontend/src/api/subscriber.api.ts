@@ -74,6 +74,11 @@ export const subscriberApi = {
     return data;
   },
 
+  listAttendants: async (): Promise<User[]> => {
+    const { data } = await api.get<User[]>('/subscribers/attendants');
+    return data;
+  },
+
   detail: async (id: number): Promise<SubscriberDetail> => {
     const { data } = await api.get<SubscriberDetail>(`/subscribers/${id}`);
     return data;

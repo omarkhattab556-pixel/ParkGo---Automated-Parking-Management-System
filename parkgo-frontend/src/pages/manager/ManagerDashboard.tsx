@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   PlusSquare,
@@ -66,6 +66,7 @@ const quickActions = [
 
 export default function ManagerDashboard() {
   const user = useAuthStore((s) => s.user);
+  const navigate = useNavigate();
   const load = useFacilityLoad(15_000);
 
   const occupancy = useQuery({
@@ -136,6 +137,7 @@ export default function ManagerDashboard() {
       is_reserved: s.reserved,
       location: s.location,
       occupant_name: s.occupant_name,
+      occupant_id: s.occupant_id,
     }));
   }, [spaces.data]);
 
@@ -262,7 +264,14 @@ export default function ManagerDashboard() {
           />
           <div className="flex-1 rounded-2xl overflow-hidden bg-gradient-to-br from-ink-800 to-ink-900 border border-surface-200">
             {lotSpots.length > 0 ? (
-              <ParkingLot3D spots={lotSpots} cols={8} />
+              <ParkingLot3D
+                spots={lotSpots}
+                cols={8}
+                onSpotClick={(spot) => {
+                  if (spot.occupant_id)
+                    navigate(`/manager/subscribers?id=${spot.occupant_id}`);
+                }}
+              />
             ) : (
               <div className="h-full flex items-center justify-center text-white/50 text-sm">
                 Loading facility…

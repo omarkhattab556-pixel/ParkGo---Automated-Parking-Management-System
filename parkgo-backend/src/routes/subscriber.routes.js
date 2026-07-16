@@ -6,6 +6,7 @@ import {
   updateOwnDetails,
   registerSubscriber,
   listSubscribers,
+  listAttendants,
   getSubscriberDetail,
   reactivateSubscriber,
   deactivateSubscriber,
@@ -68,6 +69,14 @@ router.get(
   authenticate,
   requireRole('attendant', 'manager'),
   listSubscribers
+);
+
+// Must be declared before '/:id' so "attendants" isn't captured as an id.
+router.get(
+  '/attendants',
+  authenticate,
+  requireRole('manager'),
+  listAttendants
 );
 
 router.get(

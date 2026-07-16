@@ -202,13 +202,12 @@ export const listSpaces = async (req, res, next) => {
       };
 
       if (canSeeOccupants) {
-        const owner = p
-          ? usersById[p.subscriber_num]
-          : r
-          ? usersById[r.subscriber_num]
-          : null;
+        const ownerId = p ? p.subscriber_num : r ? r.subscriber_num : null;
+        const owner = ownerId ? usersById[ownerId] : null;
         if (owner) {
           base.occupant_name = `${owner.first_name} ${owner.last_name}`;
+          // Subscriber id so staff can open the occupant's profile from the map.
+          base.occupant_id = ownerId;
         }
       }
       return base;

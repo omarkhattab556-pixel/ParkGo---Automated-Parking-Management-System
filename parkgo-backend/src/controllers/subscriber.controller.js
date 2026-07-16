@@ -116,6 +116,24 @@ export const listSubscribers = async (_req, res, next) => {
 };
 
 /**
+ * GET /api/subscribers/attendants
+ * Manager — list all attendant (שומר / סדרן) accounts.
+ */
+export const listAttendants = async (_req, res, next) => {
+  try {
+    const { data: users, error } = await supabase
+      .from('user')
+      .select('id, first_name, last_name, email, phone_number, user_type')
+      .eq('user_type', 'attendant')
+      .order('id', { ascending: false });
+    if (error) throw error;
+    return res.json(users || []);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
  * GET /api/subscribers/:id
  * Returns user + subscriber + their reservations & parkings.
  */

@@ -9,6 +9,7 @@ interface LotCanvasProps {
   cols: number;
   autoRotate: boolean;
   showcase: boolean;
+  onSpotClick?: (spot: ParkingSpot3D) => void;
 }
 
 export default function LotCanvas({
@@ -16,6 +17,7 @@ export default function LotCanvas({
   cols,
   autoRotate,
   showcase,
+  onSpotClick,
 }: LotCanvasProps) {
   return (
     <Canvas
@@ -30,6 +32,7 @@ export default function LotCanvas({
         cols={cols}
         autoRotate={autoRotate}
         showcase={showcase}
+        onSpotClick={onSpotClick}
       />
     </Canvas>
   );
@@ -40,11 +43,13 @@ function Scene({
   cols,
   autoRotate,
   showcase,
+  onSpotClick,
 }: {
   spots: ParkingSpot3D[];
   cols: number;
   autoRotate: boolean;
   showcase: boolean;
+  onSpotClick?: (spot: ParkingSpot3D) => void;
 }) {
   const rows = Math.max(1, Math.ceil(spots.length / cols));
   const cellW = 1.0;
@@ -97,7 +102,7 @@ function Scene({
       </mesh>
 
       {layout.map(({ key, pos, spot }) => (
-        <Spot key={key} position={pos} spot={spot} />
+        <Spot key={key} position={pos} spot={spot} onSpotClick={onSpotClick} />
       ))}
 
       <ContactShadows
@@ -126,12 +131,17 @@ function Scene({
 function Spot({
   position,
   spot,
+  onSpotClick,
 }: {
   position: [number, number, number];
   spot: ParkingSpot3D;
+  onSpotClick?: (spot: ParkingSpot3D) => void;
 }) {
   const groupRef = useRef<Group>(null);
   const [hovered, setHovered] = useState(false);
+
+  // A spot is clickable when staff can open the occupant's profile.
+  const clickable = !!(onSpotClick && spot.occupant_id);
 
   let color = '#10b981';
   let emissive = '#10b981';
@@ -164,11 +174,16 @@ function Spot({
       onPointerOver={(e) => {
         e.stopPropagation();
         setHovered(true);
-        document.body.style.cursor = 'pointer';
+        document.body.style.cursor = clickable ? 'pointer' : 'default';
       }}
       onPointerOut={() => {
         setHovered(false);
         document.body.style.cursor = '';
+      }}
+      onClick={(e) => {
+        if (!clickable) return;
+        e.stopPropagation();
+        onSpotClick?.(spot);
       }}
     >
       <mesh
@@ -256,6 +271,11 @@ function Spot({
               Space #{spot.space_number}
             </div>
             <div>{spot.occupant_name}</div>
+            {clickable && (
+              <div className="text-[9px] text-brand-300 mt-0.5">
+                Click to view profile →
+              </div>
+            )}
           </div>
         </Html>
       )}

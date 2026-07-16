@@ -6,6 +6,8 @@ export interface SpaceWithStatus extends ParkingSpace {
   reserved: boolean;
   is_mine?: boolean;
   occupant_name?: string;
+  /** Subscriber id of the occupant (staff view only) — links to their profile. */
+  occupant_id?: number;
 }
 
 export interface AddSpacePayload {
