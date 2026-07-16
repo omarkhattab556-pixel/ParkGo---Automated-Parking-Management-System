@@ -3,6 +3,8 @@ import {
   occupancyReport,
   behaviorReport,
   reservationsReport,
+  revenueReport,
+  myBilling,
   exportReport,
 } from '../controllers/reports.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
@@ -17,6 +19,13 @@ router.get(
   authenticate,
   requireRole('manager'),
   reservationsReport
+);
+router.get('/revenue', authenticate, requireRole('manager'), revenueReport);
+router.get(
+  '/my-billing',
+  authenticate,
+  requireRole('subscriber'),
+  myBilling
 );
 router.get(
   '/export/:type',

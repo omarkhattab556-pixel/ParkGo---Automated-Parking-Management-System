@@ -2,6 +2,8 @@ import {
   buildOccupancyReport,
   buildBehaviorReport,
   buildReservationsReport,
+  buildRevenueReport,
+  buildBillingStatement,
 } from '../services/reports.service.js';
 
 const escapeCsv = (v) => {
@@ -49,8 +51,34 @@ export const reservationsReport = async (req, res, next) => {
 };
 
 /**
+ * GET /api/reports/revenue?month=YYYY-MM  (manager)
+ * Facility-wide monthly revenue breakdown.
+ */
+export const revenueReport = async (req, res, next) => {
+  try {
+    const data = await buildRevenueReport(req.query.month);
+    return res.json(data);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * GET /api/reports/my-billing?month=YYYY-MM  (subscriber)
+ * The signed-in subscriber's own monthly billing statement.
+ */
+export const myBilling = async (req, res, next) => {
+  try {
+    const data = await buildBillingStatement(req.user.id, req.query.month);
+    return res.json(data);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
  * GET /api/reports/export/:type?month=YYYY-MM
- *  type ∈ { occupancy | behavior | reservations }
+ *  type ∈ { occupancy | behavior | reservations | revenue }
  * Returns text/csv.
  */
 export const exportReport = async (req, res, next) => {
@@ -124,6 +152,36 @@ export const exportReport = async (req, res, next) => {
       );
       csv = `# Reservations Report ${r.month}\n${summary}\n\n# Daily Reservations\n${daily}\n`;
       filename = `reservations-${r.month}.csv`;
+    } else if (type === 'revenue') {
+      const r = await buildRevenueReport(month);
+      const summary = toCsv(
+        ['metric', `value_${r.currency}`],
+        [
+          ['month', r.month],
+          ['total_revenue', r.total_revenue.toFixed(2)],
+          ['parking_revenue', r.parking_revenue.toFixed(2)],
+          ['extension_revenue', r.extension_revenue.toFixed(2)],
+          ['late_revenue', r.late_revenue.toFixed(2)],
+          ['subscription_revenue', r.subscription_revenue.toFixed(2)],
+          ['active_subscribers', r.active_subscribers],
+          ['average_per_subscriber', r.average_per_subscriber.toFixed(2)],
+        ]
+      );
+      const daily = toCsv(
+        ['date', `revenue_${r.currency}`],
+        r.daily.map((d) => [d.date, d.revenue.toFixed(2)])
+      );
+      const bySub = toCsv(
+        ['subscriber_num', 'name', 'parkings', `revenue_${r.currency}`],
+        r.by_subscriber.map((s) => [
+          s.subscriber_num,
+          s.name,
+          s.parkings,
+          s.revenue.toFixed(2),
+        ])
+      );
+      csv = `# Revenue Report ${r.month}\n${summary}\n\n# Daily Revenue\n${daily}\n\n# Revenue by Subscriber\n${bySub}\n`;
+      filename = `revenue-${r.month}.csv`;
     } else {
       return res.status(400).json({ error: `Unknown report type: ${type}` });
     }

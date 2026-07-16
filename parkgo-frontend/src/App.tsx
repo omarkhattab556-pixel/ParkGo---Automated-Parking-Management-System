@@ -25,6 +25,7 @@ const ReservationHistoryPage = lazy(() => import('@/pages/subscriber/Reservation
 const CancelReservationPage = lazy(() => import('@/pages/subscriber/CancelReservationPage'));
 const UpdateDetailsPage = lazy(() => import('@/pages/subscriber/UpdateDetailsPage'));
 const ProfilePage = lazy(() => import('@/pages/subscriber/ProfilePage'));
+const StatisticsPage = lazy(() => import('@/pages/subscriber/StatisticsPage'));
 
 // Attendant
 const AttendantLayout = lazy(() => import('@/pages/attendant/AttendantLayout'));
@@ -117,6 +118,7 @@ function App() {
                 />
                 <Route path="update-details" element={<UpdateDetailsPage />} />
                 <Route path="profile" element={<ProfilePage />} />
+                <Route path="statistics" element={<StatisticsPage />} />
                 <Route path="*" element={<Navigate to="/subscriber" replace />} />
               </Route>
 

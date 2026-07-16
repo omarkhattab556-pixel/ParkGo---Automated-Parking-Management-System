@@ -40,7 +40,52 @@ export interface ReservationsReport {
   daily: { date: string; count: number }[];
 }
 
-export type ReportType = 'occupancy' | 'behavior' | 'reservations';
+export interface PricingRates {
+  hourly_rate: number;
+  late_fine: number;
+  subscription_fee: number;
+}
+
+export interface RevenueReport {
+  month: string;
+  currency: string;
+  rates: PricingRates;
+  total_revenue: number;
+  parking_revenue: number;
+  extension_revenue: number;
+  late_revenue: number;
+  subscription_revenue: number;
+  total_late_count: number;
+  active_subscribers: number;
+  average_per_subscriber: number;
+  daily: { date: string; revenue: number }[];
+  by_subscriber: {
+    subscriber_num: number;
+    name: string;
+    parkings: number;
+    revenue: number;
+  }[];
+}
+
+export interface BillingStatement {
+  month: string;
+  currency: string;
+  rates: PricingRates;
+  total_parkings: number;
+  total_hours: number;
+  parking_cost: number;
+  extension_cost: number;
+  late_count: number;
+  late_fines: number;
+  subscription_fee: number;
+  total_due: number;
+}
+
+export type ReportType =
+  | 'occupancy'
+  | 'behavior'
+  | 'reservations'
+  | 'revenue';
 
 export const reportsApi = {
   occupancy: async (month?: string): Promise<OccupancyReport> => {
@@ -59,6 +104,20 @@ export const reportsApi = {
 
   reservations: async (month?: string): Promise<ReservationsReport> => {
     const { data } = await api.get<ReservationsReport>('/reports/reservations', {
+      params: month ? { month } : undefined,
+    });
+    return data;
+  },
+
+  revenue: async (month?: string): Promise<RevenueReport> => {
+    const { data } = await api.get<RevenueReport>('/reports/revenue', {
+      params: month ? { month } : undefined,
+    });
+    return data;
+  },
+
+  myBilling: async (month?: string): Promise<BillingStatement> => {
+    const { data } = await api.get<BillingStatement>('/reports/my-billing', {
       params: month ? { month } : undefined,
     });
     return data;

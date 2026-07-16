@@ -17,6 +17,19 @@ export const BUSINESS = {
   INSTALLER_OPERATION_SECONDS: num(process.env.INSTALLER_OPERATION_SECONDS, 20),
 };
 
+// Pricing model (all amounts in ILS / ₪). Uniform hourly tariff: every started
+// hour of parking is billed at HOURLY_RATE. Hours beyond the standard maximum
+// (i.e. the extended portion) are additionally surfaced as "extension cost" for
+// transparency, but billed at the same hourly rate. A flat LATE_FINE is charged
+// per recorded late return, and every active subscriber pays a monthly
+// SUBSCRIPTION_FEE. Billing resets each calendar month.
+export const PRICING = {
+  CURRENCY: process.env.CURRENCY || 'ILS',
+  HOURLY_RATE: num(process.env.HOURLY_RATE, 50),
+  LATE_FINE: num(process.env.LATE_FINE, 200),
+  SUBSCRIPTION_FEE: num(process.env.SUBSCRIPTION_FEE, 150),
+};
+
 export const JWT = {
   SECRET: process.env.JWT_SECRET || 'dev-secret-change-me',
   EXPIRES_IN: process.env.JWT_EXPIRES_IN || '7d',

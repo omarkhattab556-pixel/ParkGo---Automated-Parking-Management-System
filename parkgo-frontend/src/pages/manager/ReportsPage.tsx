@@ -5,6 +5,7 @@ import {
   TrendingUp,
   Clock,
   CalendarClock,
+  Wallet,
   Download,
   Printer,
 } from 'lucide-react';
@@ -17,6 +18,7 @@ import { reportsApi, type ReportType } from '@/api/reports.api';
 import { OccupancyReport } from './reports/OccupancyReport';
 import { BehaviorReport } from './reports/BehaviorReport';
 import { ReservationsReport } from './reports/ReservationsReport';
+import { RevenueReport } from './reports/RevenueReport';
 
 const tabs: {
   key: ReportType;
@@ -26,6 +28,7 @@ const tabs: {
   { key: 'occupancy', label: 'Occupancy', icon: TrendingUp },
   { key: 'behavior', label: 'Duration & Behavior', icon: Clock },
   { key: 'reservations', label: 'Reservations', icon: CalendarClock },
+  { key: 'revenue', label: 'Revenue', icon: Wallet },
 ];
 
 export default function ReportsPage() {
@@ -122,6 +125,7 @@ export default function ReportsPage() {
         {active === 'occupancy' && <OccupancyReport month={month} />}
         {active === 'behavior' && <BehaviorReport month={month} />}
         {active === 'reservations' && <ReservationsReport month={month} />}
+        {active === 'revenue' && <RevenueReport month={month} />}
       </div>
     </div>
   );

@@ -1,7 +1,36 @@
 import supabase from '../config/supabase.js';
-import { BUSINESS } from '../config/constants.js';
+import { BUSINESS, PRICING } from '../config/constants.js';
 
 const MAX_TIME_MINUTES = BUSINESS.MAX_PARKING_HOURS * 60;
+
+/**
+ * Bill a single parking session. Every started hour is charged at the uniform
+ * hourly rate. Hours beyond the standard maximum (the extended portion) are
+ * additionally reported as `extensionCost` for transparency — they are already
+ * included in `total`.
+ *
+ * @param {number} elapsedMinutes  actual minutes parked
+ * @param {number} maxTimeMinutes  this session's cap (grows with extensions)
+ * @returns {{ hours:number, total:number, baseCost:number, extensionCost:number }}
+ */
+export const billParkingSession = (elapsedMinutes, maxTimeMinutes) => {
+  const rate = PRICING.HOURLY_RATE;
+  const minutes = Math.max(0, elapsedMinutes);
+  // Round each started hour up (a 61-minute stay is billed as 2 hours).
+  const hours = Math.max(1, Math.ceil(minutes / 60));
+
+  const standardMax = maxTimeMinutes || MAX_TIME_MINUTES;
+  const standardHours = Math.ceil(standardMax / 60);
+  const extendedHours = Math.max(0, hours - standardHours);
+  const baseHours = hours - extendedHours;
+
+  return {
+    hours,
+    baseCost: baseHours * rate,
+    extensionCost: extendedHours * rate,
+    total: hours * rate,
+  };
+};
 
 /**
  * Compute the date range for a given month string "YYYY-MM" (or current month
@@ -298,5 +327,196 @@ export const buildReservationsReport = async (monthStr) => {
     cancelled_percent: (cancelled / total) * 100,
     reservation_occupancy_share: reservationShare,
     daily,
+  };
+};
+
+/**
+ * Per-subscriber monthly billing statement. Aggregates every parking that
+ * STARTED in the month for this subscriber and applies the pricing model:
+ *   - hourly parking charges (base)
+ *   - extension charges (hours beyond the standard max)
+ *   - late fines (one flat fine per late return in the month)
+ *   - a flat monthly subscription fee
+ * Everything resets each calendar month (the query is scoped to the month).
+ */
+export const buildBillingStatement = async (subscriberId, monthStr) => {
+  const range = computeMonthRange(monthStr);
+
+  const { data: parkings, error } = await supabase
+    .from('parking')
+    .select('parking_date, retrieval_time, max_time_minutes, extension_count')
+    .eq('subscriber_num', subscriberId)
+    .gte('parking_date', range.startIso)
+    .lt('parking_date', range.endIso)
+    .limit(20000);
+  if (error) throw error;
+
+  let totalParkings = 0;
+  let totalMinutes = 0;
+  let baseCost = 0;
+  let extensionCost = 0;
+  let lateCount = 0;
+
+  for (const p of parkings || []) {
+    totalParkings += 1;
+    const start = new Date(p.parking_date).getTime();
+    const end = p.retrieval_time
+      ? new Date(p.retrieval_time).getTime()
+      : Date.now();
+    const minutes = (end - start) / 60_000;
+    totalMinutes += Math.max(0, minutes);
+
+    const bill = billParkingSession(minutes, p.max_time_minutes);
+    baseCost += bill.baseCost;
+    extensionCost += bill.extensionCost;
+
+    const maxMin = p.max_time_minutes || MAX_TIME_MINUTES;
+    if (minutes > maxMin) lateCount += 1;
+  }
+
+  const lateFines = lateCount * PRICING.LATE_FINE;
+  const subscriptionFee = PRICING.SUBSCRIPTION_FEE;
+  const total = baseCost + extensionCost + lateFines + subscriptionFee;
+
+  return {
+    month: range.monthStr,
+    currency: PRICING.CURRENCY,
+    rates: {
+      hourly_rate: PRICING.HOURLY_RATE,
+      late_fine: PRICING.LATE_FINE,
+      subscription_fee: PRICING.SUBSCRIPTION_FEE,
+    },
+    total_parkings: totalParkings,
+    total_hours: totalMinutes / 60,
+    parking_cost: baseCost,
+    extension_cost: extensionCost,
+    late_count: lateCount,
+    late_fines: lateFines,
+    subscription_fee: subscriptionFee,
+    total_due: total,
+  };
+};
+
+/**
+ * Facility-wide monthly revenue report for the manager. Sums the same pricing
+ * model across ALL subscribers and breaks the revenue down by source, by day,
+ * and by subscriber.
+ */
+export const buildRevenueReport = async (monthStr) => {
+  const range = computeMonthRange(monthStr);
+
+  const { data: parkings, error } = await supabase
+    .from('parking')
+    .select(
+      'subscriber_num, parking_date, retrieval_time, max_time_minutes, extension_count'
+    )
+    .gte('parking_date', range.startIso)
+    .lt('parking_date', range.endIso)
+    .limit(50000);
+  if (error) throw error;
+
+  // Per-day and per-subscriber accumulators.
+  const dailyMap = {};
+  for (let d = 1; d <= range.daysInMonth; d++) {
+    const key = `${range.year}-${String(range.monthIdx + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    dailyMap[key] = 0;
+  }
+  const perSubscriber = {}; // id -> revenue accumulator
+
+  let parkingRevenue = 0;
+  let extensionRevenue = 0;
+  let lateRevenue = 0;
+  let totalLateCount = 0;
+
+  for (const p of parkings || []) {
+    const start = new Date(p.parking_date).getTime();
+    const end = p.retrieval_time
+      ? new Date(p.retrieval_time).getTime()
+      : Date.now();
+    const minutes = (end - start) / 60_000;
+    const bill = billParkingSession(minutes, p.max_time_minutes);
+
+    const maxMin = p.max_time_minutes || MAX_TIME_MINUTES;
+    const isLate = minutes > maxMin;
+    const fine = isLate ? PRICING.LATE_FINE : 0;
+    if (isLate) totalLateCount += 1;
+
+    parkingRevenue += bill.baseCost;
+    extensionRevenue += bill.extensionCost;
+    lateRevenue += fine;
+
+    const dayKey = new Date(p.parking_date).toISOString().slice(0, 10);
+    const sessionRevenue = bill.total + fine;
+    if (dayKey in dailyMap) dailyMap[dayKey] += sessionRevenue;
+
+    const id = p.subscriber_num;
+    if (!perSubscriber[id]) {
+      perSubscriber[id] = { subscriber_num: id, parkings: 0, revenue: 0 };
+    }
+    perSubscriber[id].parkings += 1;
+    perSubscriber[id].revenue += sessionRevenue;
+  }
+
+  // Subscription fees: one flat fee per active subscriber.
+  const { count: activeSubs } = await supabase
+    .from('subscriber')
+    .select('*', { count: 'exact', head: true })
+    .eq('status', 'active');
+  const activeSubsNum = activeSubs || 0;
+  const subscriptionRevenue = activeSubsNum * PRICING.SUBSCRIPTION_FEE;
+
+  // Attach the subscription fee to each subscriber that has one, and resolve
+  // names for the per-subscriber breakdown.
+  const subscriberIds = Object.keys(perSubscriber).map(Number);
+  let usersById = {};
+  if (subscriberIds.length > 0) {
+    const { data: users } = await supabase
+      .from('user')
+      .select('id, first_name, last_name')
+      .in('id', subscriberIds);
+    usersById = Object.fromEntries((users || []).map((u) => [u.id, u]));
+  }
+
+  const bySubscriber = Object.values(perSubscriber)
+    .map((s) => {
+      const u = usersById[s.subscriber_num];
+      return {
+        subscriber_num: s.subscriber_num,
+        name: u ? `${u.first_name} ${u.last_name}` : `#${s.subscriber_num}`,
+        parkings: s.parkings,
+        revenue: s.revenue,
+      };
+    })
+    .sort((a, b) => b.revenue - a.revenue);
+
+  const totalRevenue =
+    parkingRevenue + extensionRevenue + lateRevenue + subscriptionRevenue;
+
+  const daily = Object.entries(dailyMap).map(([date, revenue]) => ({
+    date,
+    revenue,
+  }));
+
+  const averagePerSubscriber =
+    activeSubsNum > 0 ? totalRevenue / activeSubsNum : 0;
+
+  return {
+    month: range.monthStr,
+    currency: PRICING.CURRENCY,
+    rates: {
+      hourly_rate: PRICING.HOURLY_RATE,
+      late_fine: PRICING.LATE_FINE,
+      subscription_fee: PRICING.SUBSCRIPTION_FEE,
+    },
+    total_revenue: totalRevenue,
+    parking_revenue: parkingRevenue,
+    extension_revenue: extensionRevenue,
+    late_revenue: lateRevenue,
+    subscription_revenue: subscriptionRevenue,
+    total_late_count: totalLateCount,
+    active_subscribers: activeSubsNum,
+    average_per_subscriber: averagePerSubscriber,
+    daily,
+    by_subscriber: bySubscriber,
   };
 };
