@@ -41,7 +41,7 @@ export const JWT = {
 // 503 instead of crashing, so the app still boots without a key configured.
 export const GEMINI = {
   API_KEY: process.env.GEMINI_API_KEY || '',
-  MODEL: process.env.GEMINI_MODEL || 'gemini-flash-latest',//Gemini 2.5 Flash
+  MODEL: process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite',//Gemini 2.5 Flash
   ENABLED: !!process.env.GEMINI_API_KEY,
 };
 
