@@ -35,6 +35,16 @@ export const JWT = {
   EXPIRES_IN: process.env.JWT_EXPIRES_IN || '7d',
 };
 
+// Google Gemini config for the ParkGo assistant chatbot. The API key lives on
+// the backend only — the frontend never talks to Google directly, it proxies
+// through POST /api/chat. When ENABLED is false the endpoint returns a friendly
+// 503 instead of crashing, so the app still boots without a key configured.
+export const GEMINI = {
+  API_KEY: process.env.GEMINI_API_KEY || '',
+  MODEL: process.env.GEMINI_MODEL || 'gemini-flash-latest',//Gemini 2.5 Flash
+  ENABLED: !!process.env.GEMINI_API_KEY,
+};
+
 // Origins always allowed, even if FRONTEND_URL is unset on the host.
 const DEFAULT_ORIGINS = [
   'https://parkgo-frontend.onrender.com',

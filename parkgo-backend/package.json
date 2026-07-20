@@ -6,12 +6,18 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "nodemon src/server.js"
+    "dev": "nodemon src/server.js",
+    "test": "node --test"
   },
-  "keywords": ["parking", "express", "supabase"],
+  "keywords": [
+    "parking",
+    "express",
+    "supabase"
+  ],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@supabase/supabase-js": "^2.105.4",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",

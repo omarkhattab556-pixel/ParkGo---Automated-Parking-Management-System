@@ -13,6 +13,7 @@ import reservationRoutes from './routes/reservation.routes.js';
 import parkingRoutes from './routes/parking.routes.js';
 import facilityRoutes from './routes/facility.routes.js';
 import reportsRoutes from './routes/reports.routes.js';
+import chatbotRoutes from './routes/chatbot.routes.js';
 
 import { startFreeInstallersJob } from './jobs/freeInstallers.job.js';
 import { startCancelExpiredJob } from './jobs/cancelExpiredReservations.job.js';
@@ -51,6 +52,7 @@ app.use('/api/reservations', reservationRoutes);
 app.use('/api/parking', parkingRoutes);
 app.use('/api/facility', facilityRoutes);
 app.use('/api/reports', reportsRoutes);
+app.use('/api/chat', chatbotRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

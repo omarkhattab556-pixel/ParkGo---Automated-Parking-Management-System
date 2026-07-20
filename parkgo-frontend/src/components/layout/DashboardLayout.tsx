@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 import { Sidebar, type SidebarItem } from './Sidebar';
 import { ParkGoMark } from './ParkGoMark';
+import { ChatWidget } from '@/components/chat/ChatWidget';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
@@ -176,6 +177,9 @@ export function DashboardLayout({ items, brandColor, roleLabel, topBar }: Props)
           <Outlet />
         </motion.div>
       </main>
+
+      {/* ParkGo Assistant — floating on every authenticated screen, all roles */}
+      <ChatWidget />
     </div>
   );
 }
