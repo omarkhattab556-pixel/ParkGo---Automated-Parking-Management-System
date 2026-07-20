@@ -140,6 +140,41 @@ export const GEMINI = {
 
 ---
 
+## 5.1 היסטוריית שיחה — בידוד לפי משתמש ותפקיד
+
+**הבעיה שתוקנה:** השיחה נשמרה ב-`sessionStorage` תחת מפתח גלובלי (`parkgo-chat`) ללא scope למשתמש,
+וה-logout לא ניקה אותה — כך שמשתמש שהתחבר אחרי אחר באותו דפדפן ראה את השיחה הקודמת.
+
+**הפתרון:** השיחה עברה לשרת, לטבלה `chat_message`, ומסוננת תמיד לפי `user_id` **וגם** `user_type`:
+
+```sql
+CREATE TABLE public.chat_message (
+  message_id  bigserial   NOT NULL,
+  user_id     integer     NOT NULL,
+  user_type   varchar(20) NOT NULL,          -- role snapshot at write time
+  role        varchar(16) NOT NULL,          -- 'user' | 'assistant'
+  content     text        NOT NULL,
+  action_type varchar(32),
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT chat_message_pkey PRIMARY KEY (message_id),
+  CONSTRAINT chat_message_user_id_fkey FOREIGN KEY (user_id)
+    REFERENCES public.user(id) ON DELETE CASCADE,
+  CONSTRAINT chat_message_role_check CHECK (role IN ('user', 'assistant'))
+);
+CREATE INDEX chat_message_user_created_idx
+  ON public.chat_message (user_id, created_at DESC);
+```
+
+- `services/chatbot/chatbot.history.js` — `loadHistory` / `saveExchange` / `clearHistory`, כולם מסוננים ל-`user_id` + `user_type`.
+- `GET /api/chat/history` ו-`DELETE /api/chat/history` — כל אחד פועל **רק** על השורות של המשתמש המחובר.
+- **הקשחה נוספת:** השרת כבר לא מקבל `history` מגוף הבקשה — היא נטענת מה-DB. כך לקוח לא יכול לזייף תורות "assistant" קודמים כדי להטות את המודל (prompt-injection דרך היסטוריה).
+- **`user_type` נשמר בכל הודעה** — אם תפקיד משתנה, השיחה מהתפקיד הקודם לא מוזרמת להקשר של התפקיד החדש, שלו הרשאות מידע אחרות.
+- הפרונטאנד כבר לא שומר שיחה ב-storage כלל; `useChat(userId)` טוען מהשרת ומאפס קשיח כשהמשתמש מתחלף.
+
+**הרשאות מידע לפי תפקיד** נאכפות בשכבת הכלים (`chatbot.tools.js`): לכל כלי רשימת `roles`, ו-`runTool` חוסם לפני ביצוע — מנוי מקבל רק את הנתונים של עצמו, פקח/מנהל מקבלים כלים תפעוליים, ודוחות הכנסה שמורים למנהל בלבד.
+
+---
+
 ## 6. אבטחה ו-Guardrails
 
 - מפתח Gemini **בבקאנד בלבד** — אין חשיפה ל-client (הכל דרך `POST /api/chat` מאומת ב-JWT).

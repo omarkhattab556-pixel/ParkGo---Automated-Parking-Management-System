@@ -13,18 +13,26 @@ const getClient = () => {
 };
 
 /**
- * Normalise the client-supplied history into Gemini `Content[]`.
- * Accepts items like { role: 'user'|'assistant'|'model', text: '...' }.
- * The final/current user message is passed separately (not in history).
+ * Normalise stored history into Gemini `Content[]`.
+ * Accepts DB rows ({ role, content }) or plain turns ({ role, text }).
+ * The current user message is passed separately (not in history).
+ *
+ * Gemini requires the history to start with a 'user' turn, so any leading
+ * assistant rows are dropped.
  */
-const toGeminiHistory = (history = []) =>
-  (Array.isArray(history) ? history : [])
+export const toGeminiHistory = (history = []) => {
+  const mapped = (Array.isArray(history) ? history : [])
+    .map((m) => ({ role: m?.role, text: m?.content ?? m?.text }))
+    .filter((m) => typeof m.text === 'string' && m.text.trim())
     .slice(-MAX_HISTORY)
-    .filter((m) => m && typeof m.text === 'string' && m.text.trim())
     .map((m) => ({
       role: m.role === 'assistant' || m.role === 'model' ? 'model' : 'user',
       parts: [{ text: m.text }],
     }));
+
+  const firstUser = mapped.findIndex((m) => m.role === 'user');
+  return firstUser === -1 ? [] : mapped.slice(firstUser);
+};
 
 /**
  * Run one chat turn.

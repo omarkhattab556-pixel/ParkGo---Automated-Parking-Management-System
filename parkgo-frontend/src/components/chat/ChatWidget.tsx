@@ -12,7 +12,8 @@ import { useChat } from './useChat';
 export function ChatWidget() {
   const [open, setOpen] = useState(false);
   const user = useAuthStore((s) => s.user);
-  const { messages, sending, send, markActionDone, reset, bottomRef } = useChat();
+  const { messages, sending, loading, send, markActionDone, reset, bottomRef } =
+    useChat(user?.id);
 
   // Only show for authenticated users (mounted inside DashboardLayout anyway).
   if (!user) return null;
@@ -83,7 +84,13 @@ export function ChatWidget() {
 
             {/* Messages */}
             <div className="flex-1 overflow-y-auto scrollbar-thin px-3 py-3 space-y-2.5 bg-surface-50">
-              {messages.length === 0 && (
+              {loading && (
+                <p className="text-xs text-ink-500 text-center py-2">
+                  Loading your conversation…
+                </p>
+              )}
+
+              {!loading && messages.length === 0 && (
                 <div className="mt-2 space-y-3">
                   <p className="text-sm text-ink-600 px-1" dir="auto">
                     שלום {user.first_name}! 👋 אני העוזר של ParkGo. שאל אותי איך להשתמש במערכת,

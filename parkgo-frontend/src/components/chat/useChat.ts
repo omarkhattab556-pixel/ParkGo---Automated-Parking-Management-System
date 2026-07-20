@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { chatApi, type ActionSuggestion, type ChatTurn } from '@/api/chat.api';
+import { chatApi, type ActionSuggestion } from '@/api/chat.api';
 
 export interface ChatMessageItem {
   id: string;
@@ -11,35 +11,51 @@ export interface ChatMessageItem {
   error?: boolean;
 }
 
-const STORAGE_KEY = 'parkgo-chat';
-const MAX_STORED = 30;
-
 const uid = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
 
-const load = (): ChatMessageItem[] => {
-  try {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw) as ChatMessageItem[];
-  } catch {
-    /* ignore */
-  }
-  return [];
-};
-
-export function useChat() {
-  const [messages, setMessages] = useState<ChatMessageItem[]>(load);
+/**
+ * Chat state for the signed-in user.
+ *
+ * The conversation is owned by the server and scoped to the user + role, so
+ * nothing is cached in localStorage/sessionStorage — otherwise a second user
+ * signing in on the same browser would see the previous user's conversation.
+ * `userId` re-loads the thread whenever the signed-in user changes.
+ */
+export function useChat(userId: number | undefined) {
+  const [messages, setMessages] = useState<ChatMessageItem[]>([]);
   const [sending, setSending] = useState(false);
+  const [loading, setLoading] = useState(false);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
+  // Load this user's stored conversation; reset hard when the user changes.
   useEffect(() => {
-    try {
-      sessionStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify(messages.slice(-MAX_STORED))
-      );
-    } catch {
-      /* ignore quota */
-    }
+    let cancelled = false;
+    setMessages([]);
+
+    if (!userId) return;
+
+    setLoading(true);
+    chatApi
+      .history()
+      .then((turns) => {
+        if (cancelled) return;
+        setMessages(
+          turns.map((t) => ({ id: uid(), role: t.role, text: t.text }))
+        );
+      })
+      .catch(() => {
+        /* history is a nicety — a failure just starts an empty thread */
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
+  useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
@@ -48,17 +64,14 @@ export function useChat() {
       const trimmed = text.trim();
       if (!trimmed || sending) return;
 
-      const userMsg: ChatMessageItem = { id: uid(), role: 'user', text: trimmed };
-      setMessages((prev) => [...prev, userMsg]);
+      setMessages((prev) => [
+        ...prev,
+        { id: uid(), role: 'user', text: trimmed },
+      ]);
       setSending(true);
 
-      // Build history from what we had BEFORE this new message.
-      const history: ChatTurn[] = messages
-        .slice(-12)
-        .map((m) => ({ role: m.role, text: m.text }));
-
       try {
-        const res = await chatApi.send(trimmed, history);
+        const res = await chatApi.send(trimmed);
         setMessages((prev) => [
           ...prev,
           {
@@ -80,7 +93,7 @@ export function useChat() {
         setSending(false);
       }
     },
-    [messages, sending]
+    [sending]
   );
 
   const markActionDone = useCallback((id: string) => {
@@ -89,16 +102,16 @@ export function useChat() {
     );
   }, []);
 
-  const reset = useCallback(() => {
+  const reset = useCallback(async () => {
     setMessages([]);
     try {
-      sessionStorage.removeItem(STORAGE_KEY);
+      await chatApi.clear();
     } catch {
-      /* ignore */
+      /* the thread is already cleared locally */
     }
   }, []);
 
-  return { messages, sending, send, markActionDone, reset, bottomRef };
+  return { messages, sending, loading, send, markActionDone, reset, bottomRef };
 }
 
 export default useChat;
