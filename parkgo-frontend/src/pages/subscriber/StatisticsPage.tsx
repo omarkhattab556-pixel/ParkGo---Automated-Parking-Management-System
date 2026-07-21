@@ -253,10 +253,7 @@ export default function StatisticsPage() {
                           </Pie>
                           <Tooltip
                             contentStyle={tooltipStyle}
-                            formatter={(value: number, name) => [
-                              money(data.currency, value),
-                              name,
-                            ]}
+                            formatter={(v) => money(data.currency, Number(v))}
                           />
                         </PieChart>
                       </ResponsiveContainer>
