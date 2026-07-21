@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { LogOut, type LucideIcon } from 'lucide-react';
+import { LogOut, ChevronRight, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import { useLogout } from '@/hooks/useAuth';
@@ -18,9 +18,11 @@ interface Props {
   /** Tailwind gradient classes (e.g. "from-brand-500 to-brand-700") */
   brandColor: string;
   roleLabel?: string;
+  /** When set, the user name/email block becomes a link to this route (Profile). */
+  profileTo?: string;
 }
 
-export function Sidebar({ items, brandColor, roleLabel }: Props) {
+export function Sidebar({ items, brandColor, roleLabel, profileTo }: Props) {
   const user = useAuthStore((s) => s.user);
   const logout = useLogout();
 
@@ -83,20 +85,46 @@ export function Sidebar({ items, brandColor, roleLabel }: Props) {
       </nav>
 
       <div className="p-3 border-t border-surface-200/80">
-        {user && (
-          <div className="flex items-center gap-3 px-2 py-2 mb-2 rounded-2xl">
-            <div className="h-9 w-9 rounded-full bg-gradient-to-br from-ink-700 to-ink-900 text-white flex items-center justify-center text-sm font-bold shadow-soft">
-              {user.first_name?.[0]?.toUpperCase()}
-              {user.last_name?.[0]?.toUpperCase()}
+        {user &&
+          (profileTo ? (
+            <NavLink
+              to={profileTo}
+              className={({ isActive }) =>
+                cn(
+                  'group flex items-center gap-3 px-2 py-2 mb-2 rounded-2xl transition-all',
+                  isActive
+                    ? 'bg-surface-100 shadow-soft'
+                    : 'hover:bg-surface-100'
+                )
+              }
+              aria-label="Open profile"
+            >
+              <div className="h-9 w-9 rounded-full bg-gradient-to-br from-ink-700 to-ink-900 text-white flex items-center justify-center text-sm font-bold shadow-soft">
+                {user.first_name?.[0]?.toUpperCase()}
+                {user.last_name?.[0]?.toUpperCase()}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-ink-900 truncate leading-tight">
+                  {user.first_name} {user.last_name}
+                </p>
+                <p className="text-xs text-ink-500 truncate">{user.email}</p>
+              </div>
+              <ChevronRight className="h-4 w-4 text-ink-400 shrink-0 group-hover:translate-x-0.5 transition-transform" />
+            </NavLink>
+          ) : (
+            <div className="flex items-center gap-3 px-2 py-2 mb-2 rounded-2xl">
+              <div className="h-9 w-9 rounded-full bg-gradient-to-br from-ink-700 to-ink-900 text-white flex items-center justify-center text-sm font-bold shadow-soft">
+                {user.first_name?.[0]?.toUpperCase()}
+                {user.last_name?.[0]?.toUpperCase()}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-ink-900 truncate leading-tight">
+                  {user.first_name} {user.last_name}
+                </p>
+                <p className="text-xs text-ink-500 truncate">{user.email}</p>
+              </div>
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-ink-900 truncate leading-tight">
-                {user.first_name} {user.last_name}
-              </p>
-              <p className="text-xs text-ink-500 truncate">{user.email}</p>
-            </div>
-          </div>
-        )}
+          ))}
         <Button
           variant="ghost"
           fullWidth

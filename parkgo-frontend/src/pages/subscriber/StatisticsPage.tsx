@@ -2,6 +2,13 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import {
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+} from 'recharts';
+import {
   BarChart3,
   Car,
   Clock,
@@ -10,12 +17,29 @@ import {
   BadgeCheck,
   Receipt,
   Info,
+  PieChart as PieChartIcon,
 } from 'lucide-react';
 
 import { reportsApi } from '@/api/reports.api';
 import { CardSkeleton, StatStripSkeleton } from '@/components/common/Skeleton';
 import { Card } from '@/components/ui/Card';
 import { PageHeader } from '@/components/ui/PageHeader';
+
+// Same palette the manager revenue report uses, so cost sources read
+// consistently across the whole app.
+const COST_COLORS = {
+  parking: '#5d52f7', // brand
+  extension: '#22c55e', // green
+  late: '#f43f5e', // danger
+  subscription: '#f59e0b', // amber
+};
+
+const tooltipStyle = {
+  borderRadius: 14,
+  border: '1px solid var(--color-surface-200)',
+  fontSize: 12,
+  boxShadow: '0 8px 28px rgba(13,13,24,0.10)',
+};
 
 function money(currency: string, amount: number): string {
   const symbol = currency === 'ILS' ? '₪' : '';
@@ -183,6 +207,101 @@ export default function StatisticsPage() {
               tone={data.late_count > 0 ? 'danger' : 'success'}
             />
           </section>
+
+          {/* Where your money goes — cost breakdown donut */}
+          {(() => {
+            const slices = [
+              { key: 'parking', label: 'Parking', value: data.parking_cost, color: COST_COLORS.parking },
+              { key: 'extension', label: 'Extensions', value: data.extension_cost, color: COST_COLORS.extension },
+              { key: 'late', label: 'Late fines', value: data.late_fines, color: COST_COLORS.late },
+              { key: 'subscription', label: 'Subscription', value: data.subscription_fee, color: COST_COLORS.subscription },
+            ].filter((s) => s.value > 0);
+            const total = slices.reduce((sum, s) => sum + s.value, 0);
+
+            return (
+              <Card variant="default" padding="xl">
+                <div className="flex items-center gap-2 mb-4">
+                  <PieChartIcon className="h-5 w-5 text-ink-500" />
+                  <h2 className="font-display text-lg font-semibold text-ink-900">
+                    Where your money goes
+                  </h2>
+                </div>
+
+                {total === 0 ? (
+                  <p className="text-sm text-ink-500 py-8 text-center">
+                    No charges yet this month — nothing to break down.
+                  </p>
+                ) : (
+                  <div className="flex flex-col sm:flex-row items-center gap-6">
+                    <div className="relative h-52 w-52 shrink-0">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={slices}
+                            dataKey="value"
+                            nameKey="label"
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={58}
+                            outerRadius={84}
+                            paddingAngle={2}
+                            stroke="none"
+                          >
+                            {slices.map((s) => (
+                              <Cell key={s.key} fill={s.color} />
+                            ))}
+                          </Pie>
+                          <Tooltip
+                            contentStyle={tooltipStyle}
+                            formatter={(value: number, name) => [
+                              money(data.currency, value),
+                              name,
+                            ]}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                        <span className="text-[11px] uppercase tracking-[0.08em] font-semibold text-ink-500">
+                          Total
+                        </span>
+                        <span className="font-display text-2xl font-bold tabular text-ink-900">
+                          {money(data.currency, total)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Legend with share of total */}
+                    <ul className="flex-1 w-full space-y-2.5">
+                      {slices.map((s) => (
+                        <li
+                          key={s.key}
+                          className="flex items-center justify-between gap-3"
+                        >
+                          <span className="flex items-center gap-2.5 min-w-0">
+                            <span
+                              className="h-3 w-3 rounded-full shrink-0"
+                              style={{ backgroundColor: s.color }}
+                            />
+                            <span className="text-sm font-semibold text-ink-800 truncate">
+                              {s.label}
+                            </span>
+                          </span>
+                          <span className="flex items-center gap-2 shrink-0">
+                            <span className="text-xs text-ink-500 tabular">
+                              {Math.round((s.value / total) * 100)}%
+                            </span>
+                            <span className="text-sm font-semibold text-ink-900 tabular">
+                              {money(data.currency, s.value)}
+                            </span>
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </Card>
+            );
+          })()}
 
           {/* Itemised bill */}
           <Card variant="default" padding="xl">

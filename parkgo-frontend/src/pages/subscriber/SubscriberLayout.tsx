@@ -9,6 +9,7 @@ export default function SubscriberLayout() {
         items={subscriberNavItems}
         brandColor="from-brand-500 to-brand-700"
         roleLabel="Member"
+        profileTo="/subscriber/profile"
       />
       <SubscriberBottomBar />
       <div className="md:hidden h-24" />

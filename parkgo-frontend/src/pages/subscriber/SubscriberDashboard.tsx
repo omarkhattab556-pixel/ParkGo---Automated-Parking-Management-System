@@ -10,6 +10,8 @@ import {
   ArrowRight,
   TrendingUp,
   CalendarClock,
+  CalendarCheck,
+  Wallet,
   ShieldCheck,
   Clock,
   Timer as TimerIcon,
@@ -24,6 +26,7 @@ import {
 } from '@/hooks/useParking';
 import { facilityApi } from '@/api/facility.api';
 import { subscriberApi } from '@/api/subscriber.api';
+import { reportsApi } from '@/api/reports.api';
 import { formatCode, formatDateTime } from '@/utils/formatters';
 import { BentoGrid, BentoCard } from '@/components/ui/Bento';
 import { StatTile } from '@/components/ui/StatTile';
@@ -57,6 +60,12 @@ const actions = [
   },
 ];
 
+// Formats a currency amount with the ILS shekel sign, no decimals.
+function money(currency: string, amount: number): string {
+  const symbol = currency === 'ILS' ? '₪' : '';
+  return `${symbol}${Math.round(amount).toLocaleString()}`;
+}
+
 // Formats a positive minute count as "Hh Mm" / "Mm", or "0m" when non-positive.
 function formatRemaining(totalMinutes: number): string {
   const clamped = Math.max(0, Math.round(totalMinutes));
@@ -77,6 +86,12 @@ export default function SubscriberDashboard() {
     queryFn: () => subscriberApi.myProfile(),
   });
 
+  // Current-month billing statement — powers the "Monthly payment" tile.
+  const billing = useQuery({
+    queryKey: ['reports', 'my-billing', 'current'],
+    queryFn: () => reportsApi.myBilling(),
+  });
+
   // Live clock so the parking timer counts down in real time.
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -92,6 +107,22 @@ export default function SubscriberDashboard() {
 
   const activeReservationsCount =
     reservations.data?.filter((r) => r.status === 'active').length ?? 0;
+
+  // Nearest upcoming reservation (soonest start time still in the future).
+  const upcomingReservation = useMemo(() => {
+    const upcoming = (reservations.data ?? [])
+      .filter(
+        (r) =>
+          r.status === 'active' &&
+          new Date(r.reservation_start).getTime() > now
+      )
+      .sort(
+        (a, b) =>
+          new Date(a.reservation_start).getTime() -
+          new Date(b.reservation_start).getTime()
+      );
+    return upcoming[0] ?? null;
+  }, [reservations.data, now]);
 
   // The subscriber sees ONLY the floor (location) they're parked on when active;
   // when idle, the first available floor. `view="subscriber"` strips occupancy
@@ -314,21 +345,59 @@ export default function SubscriberDashboard() {
           </div>
         </BentoCard>
 
-        {/* My reservations — full width above the action row */}
+        {/* My reservations — three tiles side by side */}
         <BentoCard
           span="col-span-2 md:col-span-6 lg:col-span-12"
           tone="surface"
           padding="lg"
           delay={0.08}
         >
-          <StatTile
-            label="My reservations"
-            value={reservations.isLoading ? '—' : activeReservationsCount}
-            hint="currently active"
-            icon={CalendarClock}
-            iconTone="brand"
-            loading={reservations.isLoading}
-          />
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 sm:gap-6 divide-y sm:divide-y-0 sm:divide-x divide-surface-200">
+            {/* Active reservations */}
+            <StatTile
+              label="My reservations"
+              value={reservations.isLoading ? '—' : activeReservationsCount}
+              hint="currently active"
+              icon={CalendarClock}
+              iconTone="brand"
+              loading={reservations.isLoading}
+              className="pt-4 sm:pt-0 first:pt-0 sm:pl-0"
+            />
+            {/* Nearest upcoming reservation */}
+            <StatTile
+              label="Upcoming reservation"
+              value={
+                reservations.isLoading
+                  ? '—'
+                  : upcomingReservation
+                    ? formatDateTime(upcomingReservation.reservation_start)
+                    : 'None'
+              }
+              hint={
+                upcomingReservation
+                  ? `Space #${upcomingReservation.parking_space}`
+                  : 'No upcoming bookings'
+              }
+              icon={CalendarCheck}
+              iconTone="accent"
+              loading={reservations.isLoading}
+              className="pt-4 sm:pt-0 sm:pl-6"
+            />
+            {/* Monthly payment (current-month total due) */}
+            <StatTile
+              label="Monthly payment"
+              value={
+                billing.isLoading || !billing.data
+                  ? '—'
+                  : money(billing.data.currency, billing.data.total_due)
+              }
+              hint="this month · total due"
+              icon={Wallet}
+              iconTone="success"
+              loading={billing.isLoading}
+              className="pt-4 sm:pt-0 sm:pl-6"
+            />
+          </div>
         </BentoCard>
 
         {/* Quick actions — three buttons side by side */}

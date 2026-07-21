@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
-import { Menu, X, LogOut, Bell } from 'lucide-react';
+import { Menu, X, LogOut, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import { Sidebar, type SidebarItem } from './Sidebar';
@@ -16,9 +16,11 @@ interface Props {
   brandColor: string;
   roleLabel?: string;
   topBar?: ReactNode;
+  /** When set, the user name/email block links to this route (Profile). */
+  profileTo?: string;
 }
 
-export function DashboardLayout({ items, brandColor, roleLabel, topBar }: Props) {
+export function DashboardLayout({ items, brandColor, roleLabel, topBar, profileTo }: Props) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
   const user = useAuthStore((s) => s.user);
@@ -30,7 +32,7 @@ export function DashboardLayout({ items, brandColor, roleLabel, topBar }: Props)
 
   return (
     <div className="min-h-screen flex bg-mesh">
-      <Sidebar items={items} brandColor={brandColor} roleLabel={roleLabel} />
+      <Sidebar items={items} brandColor={brandColor} roleLabel={roleLabel} profileTo={profileTo} />
 
       {/* Mobile top bar — glass */}
       <div className="md:hidden fixed top-0 inset-x-0 z-30 h-14 glass border-b border-surface-200/80 flex items-center justify-between px-4">
@@ -126,14 +128,33 @@ export function DashboardLayout({ items, brandColor, roleLabel, topBar }: Props)
                 </ul>
               </nav>
               <div className="p-4 border-t border-surface-200">
-                {user && (
-                  <div className="mb-3">
-                    <p className="text-sm font-semibold text-ink-900">
-                      {user.first_name} {user.last_name}
-                    </p>
-                    <p className="text-xs text-ink-500 truncate">{user.email}</p>
-                  </div>
-                )}
+                {user &&
+                  (profileTo ? (
+                    <NavLink
+                      to={profileTo}
+                      onClick={() => setMobileOpen(false)}
+                      className="group flex items-center gap-3 mb-3 -mx-1 px-2 py-2 rounded-2xl hover:bg-surface-100 transition-colors"
+                    >
+                      <div className="h-9 w-9 rounded-full bg-gradient-to-br from-ink-700 to-ink-900 text-white flex items-center justify-center text-sm font-bold shrink-0">
+                        {user.first_name?.[0]?.toUpperCase()}
+                        {user.last_name?.[0]?.toUpperCase()}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-ink-900 truncate">
+                          {user.first_name} {user.last_name}
+                        </p>
+                        <p className="text-xs text-ink-500 truncate">{user.email}</p>
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-ink-400 shrink-0" />
+                    </NavLink>
+                  ) : (
+                    <div className="mb-3">
+                      <p className="text-sm font-semibold text-ink-900">
+                        {user.first_name} {user.last_name}
+                      </p>
+                      <p className="text-xs text-ink-500 truncate">{user.email}</p>
+                    </div>
+                  ))}
                 <Button
                   variant="ghost"
                   fullWidth
@@ -154,16 +175,6 @@ export function DashboardLayout({ items, brandColor, roleLabel, topBar }: Props)
         <div className="hidden md:flex items-center justify-between sticky top-0 z-20 glass border-b border-surface-200/80 h-14 px-6">
           <div className="flex items-center gap-2 text-sm text-ink-500">
             {topBar}
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              className="relative h-9 w-9 rounded-xl bg-surface-100 hover:bg-surface-200 flex items-center justify-center text-ink-700"
-              aria-label="Notifications"
-            >
-              <Bell className="h-4 w-4" />
-              <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-accent-500" />
-            </button>
           </div>
         </div>
 
