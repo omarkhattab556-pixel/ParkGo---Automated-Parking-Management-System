@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
+import dns from 'node:dns/promises';
 
 dotenv.config();
 
@@ -11,6 +12,27 @@ const SMTP_PORT = Number(process.env.SMTP_PORT || 587);
 const hasSmtp = Boolean(SMTP_HOST && SMTP_USER && SMTP_PASS);
 
 /**
+ * Resolve the SMTP host to an IPv4 address.
+ *
+ * Render (and many cloud hosts) return an AAAA record for smtp.gmail.com but
+ * have no working IPv6 route, so the TCP connect fails with
+ * `ENETUNREACH 2a00:1450:...:587`. Nodemailer resolves A + AAAA records itself
+ * (via dns.resolve4/resolve6) and ignores both `family: 4` and
+ * `dns.setDefaultResultOrder`, so the only reliable fix is to hand it an
+ * IPv4 literal as the host — when `host` is already an IP, nodemailer skips
+ * DNS entirely. TLS still validates against the hostname because we pass it
+ * as `servername` (SNI + cert check).
+ */
+async function resolveIpv4(hostname) {
+  try {
+    const [addr] = await dns.resolve4(hostname);
+    return addr || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Build the transporter. Gmail (and most providers) accept:
  *   - port 465 with secure=true (implicit TLS), or
  *   - port 587 with secure=false + STARTTLS (we force it via requireTLS)
@@ -18,17 +40,22 @@ const hasSmtp = Boolean(SMTP_HOST && SMTP_USER && SMTP_PASS);
  * Tight timeouts prevent a misbehaving SMTP server from blocking responses.
  * Connection pooling avoids reconnecting on every email.
  */
-function buildTransporter() {
+async function buildTransporter() {
   if (!hasSmtp) return null;
   const secure = SMTP_PORT === 465;
+
+  // Prefer an IPv4 literal to dodge broken-IPv6 hosts; fall back to the
+  // hostname if resolution fails (nodemailer will then do its own lookup).
+  const ipv4 = await resolveIpv4(SMTP_HOST);
+
   return nodemailer.createTransport({
-    host: SMTP_HOST,
+    host: ipv4 || SMTP_HOST,
+    // Keep TLS/SNI pinned to the real hostname even when connecting by IP.
+    servername: SMTP_HOST,
+    tls: { servername: SMTP_HOST },
     port: SMTP_PORT,
     secure,
     requireTLS: !secure,
-    // Force IPv4. Many cloud hosts advertise an AAAA record for the SMTP
-    // server but have no working IPv6 route, so the TCP connect fails with
-    // `ENETUNREACH 2a00:1450:...:587`. Pinning to IPv4 avoids that.
     family: 4,
     auth: {
       user: SMTP_USER,
@@ -43,7 +70,7 @@ function buildTransporter() {
   });
 }
 
-export const transporter = buildTransporter();
+export const transporter = await buildTransporter();
 
 if (transporter) {
   // Verify on boot so misconfigured creds surface immediately in the logs
