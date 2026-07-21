@@ -26,6 +26,10 @@ function buildTransporter() {
     port: SMTP_PORT,
     secure,
     requireTLS: !secure,
+    // Force IPv4. Many cloud hosts advertise an AAAA record for the SMTP
+    // server but have no working IPv6 route, so the TCP connect fails with
+    // `ENETUNREACH 2a00:1450:...:587`. Pinning to IPv4 avoids that.
+    family: 4,
     auth: {
       user: SMTP_USER,
       pass: SMTP_PASS,
