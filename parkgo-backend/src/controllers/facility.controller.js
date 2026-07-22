@@ -123,6 +123,16 @@ export const callMaintenance = async (req, res) => {
     technician_phone: '+972-50-555-1234',
   };
   console.log('[maintenance] Technician called:', entry);
+
+  // Log the call so it feeds the financial report's variable expense
+  // (each technician visit costs the editable per-call fee). A failure here
+  // must not break the operational "call technician" flow, so we swallow it.
+  const { error } = await supabase.from('maintenance_event').insert({
+    called_at: entry.called_at,
+    called_by: entry.called_by,
+  });
+  if (error) console.error('[maintenance] could not log event:', error.message);
+
   return res.json({ success: true, ...entry });
 };
 

@@ -81,11 +81,56 @@ export interface BillingStatement {
   total_due: number;
 }
 
+export interface ExpenseConfig {
+  guard_salary: number;
+  manager_salary: number;
+  electricity: number;
+  facility_upkeep: number;
+  technician_fee: number;
+  updated_at: string | null;
+}
+
+export interface FinancialReport {
+  month: string;
+  currency: string;
+  expenses: ExpenseConfig;
+  total_income: number;
+  income_breakdown: {
+    parking: number;
+    extension: number;
+    late: number;
+    subscription: number;
+  };
+  fixed_expenses: {
+    guard_salary: number;
+    manager_salary: number;
+    electricity: number;
+    facility_upkeep: number;
+    total: number;
+  };
+  variable_expenses: {
+    technician_calls: number;
+    technician_fee: number;
+    total: number;
+  };
+  total_expenses: number;
+  net_profit: number;
+  is_profit: boolean;
+  break_even: {
+    revenue_per_parking: number;
+    standard_hours: number;
+    min_parkings: number;
+    actual_parkings: number;
+  };
+  daily_income: { date: string; revenue: number }[];
+}
+
 export type ReportType =
   | 'occupancy'
   | 'behavior'
   | 'reservations'
-  | 'revenue';
+  | 'revenue'
+  | 'financial';
 
 export const reportsApi = {
   occupancy: async (month?: string): Promise<OccupancyReport> => {
@@ -113,6 +158,25 @@ export const reportsApi = {
     const { data } = await api.get<RevenueReport>('/reports/revenue', {
       params: month ? { month } : undefined,
     });
+    return data;
+  },
+
+  financial: async (month?: string): Promise<FinancialReport> => {
+    const { data } = await api.get<FinancialReport>('/reports/financial', {
+      params: month ? { month } : undefined,
+    });
+    return data;
+  },
+
+  getExpenses: async (): Promise<ExpenseConfig> => {
+    const { data } = await api.get<ExpenseConfig>('/reports/expenses');
+    return data;
+  },
+
+  updateExpenses: async (
+    patch: Partial<Omit<ExpenseConfig, 'updated_at'>>
+  ): Promise<ExpenseConfig> => {
+    const { data } = await api.patch<ExpenseConfig>('/reports/expenses', patch);
     return data;
   },
 

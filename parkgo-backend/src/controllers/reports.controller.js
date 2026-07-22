@@ -4,6 +4,9 @@ import {
   buildReservationsReport,
   buildRevenueReport,
   buildBillingStatement,
+  buildFinancialReport,
+  getExpenseConfig,
+  updateExpenseConfig,
 } from '../services/reports.service.js';
 
 const escapeCsv = (v) => {
@@ -70,6 +73,46 @@ export const revenueReport = async (req, res, next) => {
 export const myBilling = async (req, res, next) => {
   try {
     const data = await buildBillingStatement(req.user.id, req.query.month);
+    return res.json(data);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * GET /api/reports/financial?month=YYYY-MM  (manager)
+ * Facility-wide monthly Profit & Loss: income vs. fixed + variable expenses,
+ * net profit/loss and break-even point.
+ */
+export const financialReport = async (req, res, next) => {
+  try {
+    const data = await buildFinancialReport(req.query.month);
+    return res.json(data);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * GET /api/reports/expenses  (manager)
+ * The current editable expense configuration.
+ */
+export const getExpenses = async (_req, res, next) => {
+  try {
+    const data = await getExpenseConfig();
+    return res.json(data);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * PATCH /api/reports/expenses  (manager)
+ * Update one or more of the editable expense amounts.
+ */
+export const patchExpenses = async (req, res, next) => {
+  try {
+    const data = await updateExpenseConfig(req.body || {});
     return res.json(data);
   } catch (err) {
     next(err);
@@ -182,6 +225,30 @@ export const exportReport = async (req, res, next) => {
       );
       csv = `# Revenue Report ${r.month}\n${summary}\n\n# Daily Revenue\n${daily}\n\n# Revenue by Subscriber\n${bySub}\n`;
       filename = `revenue-${r.month}.csv`;
+    } else if (type === 'financial') {
+      const r = await buildFinancialReport(month);
+      const summary = toCsv(
+        ['metric', `value_${r.currency}`],
+        [
+          ['month', r.month],
+          ['total_income', r.total_income.toFixed(2)],
+          ['fixed_expenses_total', r.fixed_expenses.total.toFixed(2)],
+          ['guard_salary', r.fixed_expenses.guard_salary.toFixed(2)],
+          ['manager_salary', r.fixed_expenses.manager_salary.toFixed(2)],
+          ['electricity', r.fixed_expenses.electricity.toFixed(2)],
+          ['facility_upkeep', r.fixed_expenses.facility_upkeep.toFixed(2)],
+          ['technician_calls', r.variable_expenses.technician_calls],
+          ['technician_fee', r.variable_expenses.technician_fee.toFixed(2)],
+          ['variable_expenses_total', r.variable_expenses.total.toFixed(2)],
+          ['total_expenses', r.total_expenses.toFixed(2)],
+          ['net_profit', r.net_profit.toFixed(2)],
+          ['status', r.is_profit ? 'profit' : 'loss'],
+          ['break_even_min_parkings', r.break_even.min_parkings],
+          ['actual_parkings', r.break_even.actual_parkings],
+        ]
+      );
+      csv = `# Financial Report ${r.month}\n${summary}\n`;
+      filename = `financial-${r.month}.csv`;
     } else {
       return res.status(400).json({ error: `Unknown report type: ${type}` });
     }

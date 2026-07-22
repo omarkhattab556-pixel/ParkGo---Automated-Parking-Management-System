@@ -9,7 +9,7 @@ import {
   Tooltip,
 } from 'recharts';
 import {
-  BarChart3,
+  Wallet,
   Car,
   Clock,
   ArrowUpRight,
@@ -138,13 +138,13 @@ export default function StatisticsPage() {
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <PageHeader
-        eyebrow="Statistics"
+        eyebrow="Billing"
         title={
           <span className="inline-flex items-center gap-3">
             <span className="h-10 w-10 rounded-2xl bg-brand-50 border border-brand-100 flex items-center justify-center text-brand-600">
-              <BarChart3 className="h-5 w-5" />
+              <Wallet className="h-5 w-5" />
             </span>
-            My statistics
+            My billing
           </span>
         }
         description="Your monthly parking activity and billing"

@@ -520,3 +520,175 @@ export const buildRevenueReport = async (monthStr) => {
     by_subscriber: bySubscriber,
   };
 };
+
+/* ============================================================================
+ * FINANCIAL REPORT (Profit & Loss)
+ * Combines the facility revenue with the manager's editable expense model:
+ *   - Fixed monthly expenses  : guard salary, manager salary, electricity,
+ *                               facility upkeep.
+ *   - Variable expenses       : per-technician-call fee × number of technician
+ *                               calls recorded in the month.
+ * Then derives net profit/loss and the break-even point (the minimum number of
+ * standard parkings the facility must sell to cover all expenses).
+ * ==========================================================================*/
+
+// Fallback amounts used when the facility_expense table is empty/unavailable,
+// so the report never crashes before the manager has customised anything.
+const DEFAULT_EXPENSES = {
+  guard_salary: 5000,
+  manager_salary: 12000,
+  electricity: 600,
+  facility_upkeep: 1000,
+  technician_fee: 600,
+};
+
+/**
+ * Read the single-row editable expense configuration (id = 1). Missing columns
+ * or a missing row fall back to DEFAULT_EXPENSES so the report is always valid.
+ */
+export const getExpenseConfig = async () => {
+  const { data, error } = await supabase
+    .from('facility_expense')
+    .select(
+      'guard_salary, manager_salary, electricity, facility_upkeep, technician_fee, updated_at'
+    )
+    .eq('id', 1)
+    .maybeSingle();
+  if (error) throw error;
+
+  return {
+    guard_salary: Number(data?.guard_salary ?? DEFAULT_EXPENSES.guard_salary),
+    manager_salary: Number(
+      data?.manager_salary ?? DEFAULT_EXPENSES.manager_salary
+    ),
+    electricity: Number(data?.electricity ?? DEFAULT_EXPENSES.electricity),
+    facility_upkeep: Number(
+      data?.facility_upkeep ?? DEFAULT_EXPENSES.facility_upkeep
+    ),
+    technician_fee: Number(
+      data?.technician_fee ?? DEFAULT_EXPENSES.technician_fee
+    ),
+    updated_at: data?.updated_at ?? null,
+  };
+};
+
+/**
+ * Update (upsert) the editable expense configuration. Only the known numeric
+ * fields are accepted; each is clamped to a non-negative number.
+ */
+export const updateExpenseConfig = async (patch) => {
+  const fields = [
+    'guard_salary',
+    'manager_salary',
+    'electricity',
+    'facility_upkeep',
+    'technician_fee',
+  ];
+  const row = { id: 1, updated_at: new Date().toISOString() };
+  for (const f of fields) {
+    if (patch[f] != null) {
+      const n = Number(patch[f]);
+      if (Number.isFinite(n) && n >= 0) row[f] = n;
+    }
+  }
+
+  const { error } = await supabase
+    .from('facility_expense')
+    .upsert(row, { onConflict: 'id' });
+  if (error) throw error;
+
+  return getExpenseConfig();
+};
+
+/**
+ * Count technician/maintenance calls recorded in the month window.
+ */
+const countMaintenanceCalls = async (range) => {
+  const { count, error } = await supabase
+    .from('maintenance_event')
+    .select('*', { count: 'exact', head: true })
+    .gte('called_at', range.startIso)
+    .lt('called_at', range.endIso);
+  if (error) throw error;
+  return count || 0;
+};
+
+/**
+ * Facility-wide monthly Profit & Loss report for the manager.
+ */
+export const buildFinancialReport = async (monthStr) => {
+  const range = computeMonthRange(monthStr);
+
+  const [revenue, expenses, technicianCalls] = await Promise.all([
+    buildRevenueReport(monthStr),
+    getExpenseConfig(),
+    countMaintenanceCalls(range),
+  ]);
+
+  const fixedExpenses =
+    expenses.guard_salary +
+    expenses.manager_salary +
+    expenses.electricity +
+    expenses.facility_upkeep;
+  const variableExpenses = technicianCalls * expenses.technician_fee;
+  const totalExpenses = fixedExpenses + variableExpenses;
+
+  const totalIncome = revenue.total_revenue;
+  const netProfit = totalIncome - totalExpenses;
+
+  // Break-even: the minimum number of "standard" parkings the facility must
+  // sell to cover ALL expenses. A standard parking earns HOURLY_RATE per hour
+  // for the standard maximum duration → that is the per-parking contribution.
+  const standardHours = Math.max(1, Math.ceil(MAX_TIME_MINUTES / 60));
+  const revenuePerParking = PRICING.HOURLY_RATE * standardHours;
+  const breakEvenParkings =
+    revenuePerParking > 0 ? Math.ceil(totalExpenses / revenuePerParking) : 0;
+
+  return {
+    month: range.monthStr,
+    currency: PRICING.CURRENCY,
+    expenses, // the editable config (also carries updated_at)
+
+    // Income side (reuse the detailed revenue breakdown).
+    total_income: totalIncome,
+    income_breakdown: {
+      parking: revenue.parking_revenue,
+      extension: revenue.extension_revenue,
+      late: revenue.late_revenue,
+      subscription: revenue.subscription_revenue,
+    },
+
+    // Fixed expense line items (monthly).
+    fixed_expenses: {
+      guard_salary: expenses.guard_salary,
+      manager_salary: expenses.manager_salary,
+      electricity: expenses.electricity,
+      facility_upkeep: expenses.facility_upkeep,
+      total: fixedExpenses,
+    },
+
+    // Variable expenses (technician calls × per-call fee).
+    variable_expenses: {
+      technician_calls: technicianCalls,
+      technician_fee: expenses.technician_fee,
+      total: variableExpenses,
+    },
+
+    total_expenses: totalExpenses,
+    net_profit: netProfit,
+    is_profit: netProfit >= 0,
+
+    break_even: {
+      revenue_per_parking: revenuePerParking,
+      standard_hours: standardHours,
+      min_parkings: breakEvenParkings,
+      // Handy context for the UI: how many parkings actually happened.
+      actual_parkings: revenue.by_subscriber.reduce(
+        (sum, s) => sum + s.parkings,
+        0
+      ),
+    },
+
+    daily_income: revenue.daily,
+  };
+};

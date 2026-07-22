@@ -29,7 +29,6 @@ import { subscriberApi } from '@/api/subscriber.api';
 import { reportsApi } from '@/api/reports.api';
 import { formatCode, formatDateTime } from '@/utils/formatters';
 import { BentoGrid, BentoCard } from '@/components/ui/Bento';
-import { StatTile } from '@/components/ui/StatTile';
 import { Badge } from '@/components/ui/Badge';
 import { PageHeader, SectionHeader } from '@/components/ui/PageHeader';
 import { GlowOrbs } from '@/components/ui/GlowOrbs';
@@ -173,6 +172,48 @@ export default function SubscriberDashboard() {
       isOvertime: remainingMinutes <= 0,
     };
   }, [active, now]);
+
+  // Three overview tiles — rendered as gradient link-buttons that share the
+  // exact design of the quick-action buttons below them (6 buttons total).
+  const overviewCards = [
+    {
+      to: '/subscriber/reservation-history',
+      label: 'My reservations',
+      value: activeReservationsCount,
+      hint: 'currently active · view all',
+      icon: CalendarClock,
+      tone: 'brand' as const,
+      orb: 'brand' as const,
+      loading: reservations.isLoading,
+    },
+    {
+      to: '/subscriber/reservation-history',
+      label: 'Upcoming reservation',
+      value: upcomingReservation
+        ? formatDateTime(upcomingReservation.reservation_start)
+        : 'None',
+      hint: upcomingReservation
+        ? `Space #${upcomingReservation.parking_space}`
+        : 'No upcoming bookings',
+      icon: CalendarCheck,
+      tone: 'accent' as const,
+      orb: 'accent' as const,
+      loading: reservations.isLoading,
+    },
+    {
+      to: '/subscriber/statistics',
+      label: 'Monthly payment',
+      value:
+        billing.data != null
+          ? money(billing.data.currency, billing.data.total_due)
+          : '—',
+      hint: 'this month · view billing',
+      icon: Wallet,
+      tone: 'success' as const,
+      orb: 'success' as const,
+      loading: billing.isLoading,
+    },
+  ];
 
   return (
     <div className="space-y-6 md:space-y-8">
@@ -345,60 +386,36 @@ export default function SubscriberDashboard() {
           </div>
         </BentoCard>
 
-        {/* My reservations — three tiles side by side */}
-        <BentoCard
-          span="col-span-2 md:col-span-6 lg:col-span-12"
-          tone="surface"
-          padding="lg"
-          delay={0.08}
-        >
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 sm:gap-6 divide-y sm:divide-y-0 sm:divide-x divide-surface-200">
-            {/* Active reservations */}
-            <StatTile
-              label="My reservations"
-              value={reservations.isLoading ? '—' : activeReservationsCount}
-              hint="currently active"
-              icon={CalendarClock}
-              iconTone="brand"
-              loading={reservations.isLoading}
-              className="pt-4 sm:pt-0 first:pt-0 sm:pl-0"
-            />
-            {/* Nearest upcoming reservation */}
-            <StatTile
-              label="Upcoming reservation"
-              value={
-                reservations.isLoading
-                  ? '—'
-                  : upcomingReservation
-                    ? formatDateTime(upcomingReservation.reservation_start)
-                    : 'None'
-              }
-              hint={
-                upcomingReservation
-                  ? `Space #${upcomingReservation.parking_space}`
-                  : 'No upcoming bookings'
-              }
-              icon={CalendarCheck}
-              iconTone="accent"
-              loading={reservations.isLoading}
-              className="pt-4 sm:pt-0 sm:pl-6"
-            />
-            {/* Monthly payment (current-month total due) */}
-            <StatTile
-              label="Monthly payment"
-              value={
-                billing.isLoading || !billing.data
-                  ? '—'
-                  : money(billing.data.currency, billing.data.total_due)
-              }
-              hint="this month · total due"
-              icon={Wallet}
-              iconTone="success"
-              loading={billing.isLoading}
-              className="pt-4 sm:pt-0 sm:pl-6"
-            />
-          </div>
-        </BentoCard>
+        {/* Overview — three clickable tiles matching the quick-action buttons.
+            Together with the three actions below they form one 6-button grid. */}
+        {overviewCards.map((c, i) => (
+          <BentoCard
+            key={c.to}
+            span="col-span-2 md:col-span-2 lg:col-span-4"
+            tone={c.tone}
+            padding="lg"
+            interactive
+            delay={0.08 + i * 0.04}
+            className="relative overflow-hidden min-h-[150px] cursor-pointer"
+          >
+            <GlowOrbs variant={c.orb} />
+            <Link to={c.to} className="relative flex flex-col h-full">
+              <div className="flex items-center justify-between mb-4">
+                <span className="h-11 w-11 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center">
+                  <c.icon className="h-5 w-5 text-white" strokeWidth={2.4} />
+                </span>
+                <ArrowRight className="h-5 w-5 text-white/70 group-hover:translate-x-1 transition-transform" />
+              </div>
+              <p className="text-[11px] uppercase tracking-[0.08em] font-semibold text-white/80">
+                {c.label}
+              </p>
+              <h3 className="font-display text-2xl font-bold tracking-tight leading-tight mt-0.5">
+                {c.loading ? '—' : c.value}
+              </h3>
+              <p className="text-sm text-white/85 mt-auto pt-3">{c.hint}</p>
+            </Link>
+          </BentoCard>
+        ))}
 
         {/* Quick actions — three buttons side by side */}
         {actions.map((a, i) => (
@@ -408,7 +425,7 @@ export default function SubscriberDashboard() {
             tone={a.tone}
             padding="lg"
             interactive
-            delay={0.12 + i * 0.04}
+            delay={0.2 + i * 0.04}
             className="relative overflow-hidden min-h-[150px] cursor-pointer"
           >
             <GlowOrbs variant={a.tone === 'brand' ? 'brand' : a.tone === 'accent' ? 'accent' : 'success'} />
