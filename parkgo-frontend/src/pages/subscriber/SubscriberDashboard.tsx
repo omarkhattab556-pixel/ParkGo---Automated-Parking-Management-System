@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
@@ -16,6 +16,9 @@ import {
   Clock,
   Timer as TimerIcon,
   AlarmClockOff,
+  LayoutGrid,
+  MapPin,
+  type LucideIcon,
 } from 'lucide-react';
 
 import { useAuthStore } from '@/store/authStore';
@@ -132,6 +135,86 @@ function formatRemaining(totalMinutes: number): string {
   const m = clamped % 60;
   if (h === 0) return `${m}m`;
   return `${h}h ${m.toString().padStart(2, '0')}m`;
+}
+
+// Per-section theming for the three shadowed section cards on the dashboard.
+type SectionTone = 'brand' | 'success' | 'accent';
+const sectionThemes: Record<
+  SectionTone,
+  { card: string; iconBox: string; icon: string; eyebrow: string; underline: string }
+> = {
+  brand: {
+    card: 'bg-brand-50/40 border-brand-100',
+    iconBox: 'bg-brand-100 border-brand-200',
+    icon: 'text-brand-600',
+    eyebrow: 'text-brand-600',
+    underline: 'bg-brand-500',
+  },
+  success: {
+    card: 'bg-success-50/40 border-success-100',
+    iconBox: 'bg-success-100 border-success-200',
+    icon: 'text-success-600',
+    eyebrow: 'text-success-600',
+    underline: 'bg-success-500',
+  },
+  accent: {
+    card: 'bg-accent-50/40 border-accent-100',
+    iconBox: 'bg-accent-100 border-accent-200',
+    icon: 'text-accent-600',
+    eyebrow: 'text-accent-600',
+    underline: 'bg-accent-500',
+  },
+};
+
+// A shadowed section card with the eyebrow + icon + title + subtitle header
+// shown in the reference design. Wraps each of the dashboard's three parts.
+function SectionShell({
+  tone,
+  icon: Icon,
+  eyebrow,
+  title,
+  subtitle,
+  delay = 0,
+  children,
+}: {
+  tone: SectionTone;
+  icon: LucideIcon;
+  eyebrow: string;
+  title: string;
+  subtitle: string;
+  delay?: number;
+  children: ReactNode;
+}) {
+  const t = sectionThemes[tone];
+  return (
+    <motion.section
+      initial={{ opacity: 0, y: 14 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.45, delay, ease: [0.16, 1, 0.3, 1] }}
+      className={`rounded-3xl border shadow-card p-4 md:p-6 ${t.card}`}
+    >
+      <header className="flex items-center gap-3.5 mb-5">
+        <span
+          className={`h-12 w-12 shrink-0 rounded-2xl border flex items-center justify-center ${t.iconBox}`}
+        >
+          <Icon className={`h-6 w-6 ${t.icon}`} strokeWidth={2.2} />
+        </span>
+        <div>
+          <p
+            className={`text-[11px] font-bold uppercase tracking-[0.12em] ${t.eyebrow}`}
+          >
+            {eyebrow}
+          </p>
+          <h2 className="font-display text-lg md:text-xl font-bold tracking-tight text-ink-900 leading-tight">
+            {title}
+          </h2>
+          <p className="text-sm text-ink-500 mt-0.5">{subtitle}</p>
+          <span className={`mt-2 block h-1 w-10 rounded-full ${t.underline}`} />
+        </div>
+      </header>
+      {children}
+    </motion.section>
+  );
 }
 
 export default function SubscriberDashboard() {
@@ -326,8 +409,15 @@ export default function SubscriberDashboard() {
         </motion.div>
       )}
 
-      {/* OVERVIEW ROW — three summary buttons ABOVE the 3D map, one row.
-          My reservations · Next reservation (featured) · Monthly payment. */}
+      {/* SECTION 1 — OVERVIEW: reservations & monthly payment at a glance. */}
+      <SectionShell
+        tone="brand"
+        icon={LayoutGrid}
+        eyebrow="Overview"
+        title="My Parking Overview"
+        subtitle="Reservations and monthly payment at a glance."
+        delay={0.02}
+      >
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
         {/* My reservations */}
         <BentoCard
@@ -447,7 +537,17 @@ export default function SubscriberDashboard() {
           </Link>
         </BentoCard>
       </div>
+      </SectionShell>
 
+      {/* SECTION 2 — LIVE PARKING: real-time 3D map and availability. */}
+      <SectionShell
+        tone="success"
+        icon={MapPin}
+        eyebrow="Live Parking"
+        title="Live Parking Status"
+        subtitle="Real-time map and space availability."
+        delay={0.06}
+      >
       {/* BENTO GRID */}
       <BentoGrid>
         {/* 3D Lot — hero */}
@@ -557,7 +657,17 @@ export default function SubscriberDashboard() {
         </BentoCard>
 
       </BentoGrid>
+      </SectionShell>
 
+      {/* SECTION 3 — SERVICES: quick actions the member can trigger. */}
+      <SectionShell
+        tone="accent"
+        icon={Car}
+        eyebrow="Services"
+        title="Parking Services"
+        subtitle="Choose any service whenever you need it."
+        delay={0.1}
+      >
       {/* QUICK ACTIONS ROW — three buttons BELOW the 3D map, one row.
           Reserve a spot · Drop off car · Pick up car. */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
@@ -594,6 +704,7 @@ export default function SubscriberDashboard() {
           );
         })}
       </div>
+      </SectionShell>
 
       {/* TRUST FOOTER */}
       <div className="flex items-center justify-center gap-2 text-xs text-ink-500 pt-2">
