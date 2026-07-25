@@ -27,7 +27,7 @@ import {
 import { facilityApi } from '@/api/facility.api';
 import { subscriberApi } from '@/api/subscriber.api';
 import { reportsApi } from '@/api/reports.api';
-import { formatCode, formatDateTime } from '@/utils/formatters';
+import { formatCode, formatDate, formatDateTime, formatTime } from '@/utils/formatters';
 import { BentoGrid, BentoCard } from '@/components/ui/Bento';
 import { Badge } from '@/components/ui/Badge';
 import { PageHeader, SectionHeader } from '@/components/ui/PageHeader';
@@ -42,6 +42,7 @@ const actions = [
     description: '24h–7d in advance',
     icon: CalendarPlus,
     tone: 'brand' as const,
+    orb: 'brand' as const,
   },
   {
     to: '/subscriber/drop-off',
@@ -49,6 +50,7 @@ const actions = [
     description: 'Park now',
     icon: Car,
     tone: 'accent' as const,
+    orb: 'accent' as const,
   },
   {
     to: '/subscriber/pick-up',
@@ -56,8 +58,38 @@ const actions = [
     description: 'Retrieve vehicle',
     icon: KeyRound,
     tone: 'success' as const,
+    orb: 'success' as const,
   },
 ];
+
+// Per-accent styling for the white dashboard buttons. Each button sits on a
+// white surface (tone="surface") and carries its identity through a soft tinted
+// icon square, a matching icon color, an accent arrow and a thin left bar —
+// mirroring the reference design.
+type Accent = 'brand' | 'accent' | 'success';
+const accentStyles: Record<
+  Accent,
+  { iconBox: string; icon: string; arrow: string; bar: string }
+> = {
+  brand: {
+    iconBox: 'bg-brand-50 border-brand-100',
+    icon: 'text-brand-600',
+    arrow: 'text-brand-600 border-brand-200',
+    bar: 'bg-brand-500',
+  },
+  accent: {
+    iconBox: 'bg-accent-50 border-accent-100',
+    icon: 'text-accent-600',
+    arrow: 'text-accent-600 border-accent-200',
+    bar: 'bg-accent-500',
+  },
+  success: {
+    iconBox: 'bg-success-50 border-success-100',
+    icon: 'text-success-600',
+    arrow: 'text-success-600 border-success-200',
+    bar: 'bg-success-500',
+  },
+};
 
 // Formats a currency amount with the ILS shekel sign, no decimals.
 function money(currency: string, amount: number): string {
@@ -173,8 +205,9 @@ export default function SubscriberDashboard() {
     };
   }, [active, now]);
 
-  // Three overview tiles — rendered as gradient link-buttons that share the
-  // exact design of the quick-action buttons below them (6 buttons total).
+  // Three overview tiles shown ABOVE the 3D map, in one row.
+  // "Next reservation" is the centre-piece and renders its date & time in a
+  // dedicated, elegant layout (handled separately in the JSX below).
   const overviewCards = [
     {
       to: '/subscriber/reservation-history',
@@ -184,20 +217,6 @@ export default function SubscriberDashboard() {
       icon: CalendarClock,
       tone: 'brand' as const,
       orb: 'brand' as const,
-      loading: reservations.isLoading,
-    },
-    {
-      to: '/subscriber/reservation-history',
-      label: 'Upcoming reservation',
-      value: upcomingReservation
-        ? formatDateTime(upcomingReservation.reservation_start)
-        : 'None',
-      hint: upcomingReservation
-        ? `Space #${upcomingReservation.parking_space}`
-        : 'No upcoming bookings',
-      icon: CalendarCheck,
-      tone: 'accent' as const,
-      orb: 'accent' as const,
       loading: reservations.isLoading,
     },
     {
@@ -279,6 +298,131 @@ export default function SubscriberDashboard() {
         </motion.div>
       )}
 
+      {/* OVERVIEW ROW — three summary buttons ABOVE the 3D map, one row.
+          My reservations · Next reservation (featured) · Monthly payment. */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
+        {/* My reservations */}
+        <BentoCard
+          span=""
+          tone="surface"
+          padding="lg"
+          interactive
+          delay={0.02}
+          className="group relative overflow-hidden min-h-[132px] cursor-pointer"
+        >
+          <span className={`absolute left-0 top-0 h-full w-1 ${accentStyles.brand.bar}`} />
+          <Link to={overviewCards[0].to} className="relative flex flex-col h-full pl-1.5">
+            <div className="flex items-center justify-between mb-3">
+              <span className={`h-11 w-11 rounded-2xl border flex items-center justify-center ${accentStyles.brand.iconBox}`}>
+                <CalendarClock className={`h-5 w-5 ${accentStyles.brand.icon}`} strokeWidth={2.4} />
+              </span>
+              <span className={`h-8 w-8 rounded-full border flex items-center justify-center ${accentStyles.brand.arrow}`}>
+                <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
+              </span>
+            </div>
+            <p className="text-[11px] uppercase tracking-[0.08em] font-semibold text-ink-500">
+              {overviewCards[0].label}
+            </p>
+            <h3 className="font-display text-2xl font-bold tracking-tight leading-tight mt-0.5 text-ink-900">
+              {overviewCards[0].loading ? '—' : overviewCards[0].value}
+            </h3>
+            <p className="text-sm text-ink-500 mt-auto pt-3">
+              {overviewCards[0].hint}
+            </p>
+          </Link>
+        </BentoCard>
+
+        {/* Next reservation — featured with an elegant date & time layout */}
+        <BentoCard
+          span=""
+          tone="surface"
+          padding="lg"
+          interactive
+          delay={0.06}
+          className="group relative overflow-hidden min-h-[132px] cursor-pointer"
+        >
+          <span className={`absolute left-0 top-0 h-full w-1 ${accentStyles.accent.bar}`} />
+          <Link
+            to="/subscriber/reservation-history"
+            className="relative flex flex-col h-full pl-1.5"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <span className={`h-11 w-11 rounded-2xl border flex items-center justify-center ${accentStyles.accent.iconBox}`}>
+                <CalendarCheck className={`h-5 w-5 ${accentStyles.accent.icon}`} strokeWidth={2.4} />
+              </span>
+              <span className={`h-8 w-8 rounded-full border flex items-center justify-center ${accentStyles.accent.arrow}`}>
+                <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
+              </span>
+            </div>
+            <p className="text-[11px] uppercase tracking-[0.08em] font-semibold text-ink-500">
+              Next reservation
+            </p>
+            {reservations.isLoading ? (
+              <h3 className="font-display text-2xl font-bold tracking-tight mt-0.5 text-ink-900">
+                —
+              </h3>
+            ) : upcomingReservation ? (
+              <>
+                <div className="mt-1.5 flex items-end gap-3">
+                  {/* Time — the hero number */}
+                  <span className="font-display text-3xl font-bold leading-none tabular text-ink-900">
+                    {formatTime(upcomingReservation.reservation_start)}
+                  </span>
+                  {/* Date — quieter, sits beside the time */}
+                  <span className="flex items-center gap-1.5 text-sm font-medium text-ink-500 pb-0.5">
+                    <CalendarCheck className={`h-3.5 w-3.5 ${accentStyles.accent.icon}`} />
+                    {formatDate(upcomingReservation.reservation_start)}
+                  </span>
+                </div>
+                <p className="text-sm text-ink-500 mt-auto pt-3">
+                  Space #{upcomingReservation.parking_space}
+                </p>
+              </>
+            ) : (
+              <>
+                <h3 className="font-display text-2xl font-bold tracking-tight leading-tight mt-0.5 text-ink-900">
+                  None scheduled
+                </h3>
+                <p className="text-sm text-ink-500 mt-auto pt-3">
+                  No upcoming bookings
+                </p>
+              </>
+            )}
+          </Link>
+        </BentoCard>
+
+        {/* Monthly payment */}
+        <BentoCard
+          span=""
+          tone="surface"
+          padding="lg"
+          interactive
+          delay={0.1}
+          className="group relative overflow-hidden min-h-[132px] cursor-pointer"
+        >
+          <span className={`absolute left-0 top-0 h-full w-1 ${accentStyles.success.bar}`} />
+          <Link to={overviewCards[1].to} className="relative flex flex-col h-full pl-1.5">
+            <div className="flex items-center justify-between mb-3">
+              <span className={`h-11 w-11 rounded-2xl border flex items-center justify-center ${accentStyles.success.iconBox}`}>
+                <Wallet className={`h-5 w-5 ${accentStyles.success.icon}`} strokeWidth={2.4} />
+              </span>
+              <span className={`h-8 w-8 rounded-full border flex items-center justify-center ${accentStyles.success.arrow}`}>
+                <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
+              </span>
+            </div>
+            <p className="text-[11px] uppercase tracking-[0.08em] font-semibold text-ink-500">
+              {overviewCards[1].label}
+            </p>
+            <h3 className="font-display text-2xl font-bold tracking-tight leading-tight mt-0.5 text-ink-900">
+              {overviewCards[1].loading ? '—' : overviewCards[1].value}
+            </h3>
+            <p className="text-sm text-ink-500 mt-auto pt-3">
+              {overviewCards[1].hint}
+            </p>
+          </Link>
+        </BentoCard>
+      </div>
+
       {/* BENTO GRID */}
       <BentoGrid>
         {/* 3D Lot — hero */}
@@ -325,13 +469,14 @@ export default function SubscriberDashboard() {
           </div>
         </BentoCard>
 
-        {/* Occupancy gauge */}
+        {/* Occupancy gauge — matches the 3D map height (spans both rows) */}
         <BentoCard
           span="col-span-2 md:col-span-3 lg:col-span-4"
           tone="surface"
           padding="lg"
+          rowSpan="row-span-2"
           delay={0.05}
-          className="flex flex-col items-center justify-between min-h-[200px]"
+          className="flex flex-col items-center justify-between min-h-[420px]"
         >
           <SectionHeader
             title="Availability"
@@ -386,66 +531,44 @@ export default function SubscriberDashboard() {
           </div>
         </BentoCard>
 
-        {/* Overview — three clickable tiles matching the quick-action buttons.
-            Together with the three actions below they form one 6-button grid. */}
-        {overviewCards.map((c, i) => (
-          <BentoCard
-            key={c.to}
-            span="col-span-2 md:col-span-2 lg:col-span-4"
-            tone={c.tone}
-            padding="lg"
-            interactive
-            delay={0.08 + i * 0.04}
-            className="relative overflow-hidden min-h-[150px] cursor-pointer"
-          >
-            <GlowOrbs variant={c.orb} />
-            <Link to={c.to} className="relative flex flex-col h-full">
-              <div className="flex items-center justify-between mb-4">
-                <span className="h-11 w-11 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center">
-                  <c.icon className="h-5 w-5 text-white" strokeWidth={2.4} />
-                </span>
-                <ArrowRight className="h-5 w-5 text-white/70 group-hover:translate-x-1 transition-transform" />
-              </div>
-              <p className="text-[11px] uppercase tracking-[0.08em] font-semibold text-white/80">
-                {c.label}
-              </p>
-              <h3 className="font-display text-2xl font-bold tracking-tight leading-tight mt-0.5">
-                {c.loading ? '—' : c.value}
-              </h3>
-              <p className="text-sm text-white/85 mt-auto pt-3">{c.hint}</p>
-            </Link>
-          </BentoCard>
-        ))}
-
-        {/* Quick actions — three buttons side by side */}
-        {actions.map((a, i) => (
-          <BentoCard
-            key={a.to}
-            span="col-span-2 md:col-span-2 lg:col-span-4"
-            tone={a.tone}
-            padding="lg"
-            interactive
-            delay={0.2 + i * 0.04}
-            className="relative overflow-hidden min-h-[150px] cursor-pointer"
-          >
-            <GlowOrbs variant={a.tone === 'brand' ? 'brand' : a.tone === 'accent' ? 'accent' : 'success'} />
-            <Link to={a.to} className="relative flex flex-col h-full">
-              <div className="flex items-center justify-between mb-4">
-                <span className="h-11 w-11 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center">
-                  <a.icon className="h-5 w-5 text-white" strokeWidth={2.4} />
-                </span>
-                <ArrowRight className="h-5 w-5 text-white/70 group-hover:translate-x-1 transition-transform" />
-              </div>
-              <h3 className="font-display text-xl font-bold tracking-tight leading-tight">
-                {a.title}
-              </h3>
-              <p className="text-sm text-white/85 mt-auto pt-3">
-                {a.description}
-              </p>
-            </Link>
-          </BentoCard>
-        ))}
       </BentoGrid>
+
+      {/* QUICK ACTIONS ROW — three buttons BELOW the 3D map, one row.
+          Reserve a spot · Drop off car · Pick up car. */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
+        {actions.map((a, i) => {
+          const s = accentStyles[a.tone];
+          return (
+            <BentoCard
+              key={a.to}
+              span=""
+              tone="surface"
+              padding="lg"
+              interactive
+              delay={0.14 + i * 0.04}
+              className="group relative overflow-hidden min-h-[150px] cursor-pointer"
+            >
+              <span className={`absolute left-0 top-0 h-full w-1 ${s.bar}`} />
+              <Link to={a.to} className="relative flex flex-col h-full pl-1.5">
+                <div className="flex items-center justify-between mb-4">
+                  <span className={`h-11 w-11 rounded-2xl border flex items-center justify-center ${s.iconBox}`}>
+                    <a.icon className={`h-5 w-5 ${s.icon}`} strokeWidth={2.4} />
+                  </span>
+                  <span className={`h-8 w-8 rounded-full border flex items-center justify-center ${s.arrow}`}>
+                    <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
+                  </span>
+                </div>
+                <h3 className="font-display text-xl font-bold tracking-tight leading-tight text-ink-900">
+                  {a.title}
+                </h3>
+                <p className="text-sm text-ink-500 mt-auto pt-3">
+                  {a.description}
+                </p>
+              </Link>
+            </BentoCard>
+          );
+        })}
+      </div>
 
       {/* TRUST FOOTER */}
       <div className="flex items-center justify-center gap-2 text-xs text-ink-500 pt-2">
