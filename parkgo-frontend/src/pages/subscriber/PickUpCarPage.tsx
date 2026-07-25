@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft,
@@ -26,6 +27,7 @@ import {
   usePickUp,
 } from '@/hooks/useParking';
 import type { PickUpResult } from '@/api/parking.api';
+import { reportsApi } from '@/api/reports.api';
 import { BUSINESS_RULES } from '@/utils/constants';
 import { formatDateTime, formatDuration } from '@/utils/formatters';
 import { cn } from '@/lib/utils';
@@ -33,6 +35,17 @@ import { cn } from '@/lib/utils';
 type Phase = 'form' | 'animating' | 'done';
 
 const EXTEND_PRESETS_MIN = [30, 60, 90, 120, 180, 240];
+
+// Currency symbol helper — matches the rest of the subscriber pages.
+function currencySymbol(currency: string): string {
+  return currency === 'ILS' ? '₪' : '';
+}
+
+// Cost of extending by `minutes` at the given hourly rate, rounded to whole
+// currency units (extensions are billed pro-rata by the hour).
+function extensionCost(minutes: number, hourlyRate: number): number {
+  return Math.round((minutes / 60) * hourlyRate);
+}
 
 export default function PickUpCarPage() {
   const navigate = useNavigate();
@@ -45,6 +58,14 @@ export default function PickUpCarPage() {
   const pickUp = usePickUp();
   const extend = useExtendParking();
   const lostCode = useLostCode();
+
+  // Pricing — powers the per-option cost shown in the extend modal.
+  const billing = useQuery({
+    queryKey: ['reports', 'my-billing', 'current'],
+    queryFn: () => reportsApi.myBilling(),
+  });
+  const hourlyRate = billing.data?.rates.hourly_rate ?? 0;
+  const currency = billing.data?.currency ?? 'ILS';
 
   const active = activeParking.data;
   const elapsedMinutes = active
@@ -296,6 +317,8 @@ export default function PickUpCarPage() {
         open={extendOpen}
         onClose={() => setExtendOpen(false)}
         extensionLeft={extensionLeft}
+        hourlyRate={hourlyRate}
+        currency={currency}
         isPending={extend.isPending}
         onSubmit={(minutes) => {
           if (!active) return;
@@ -318,15 +341,20 @@ function ExtendModal({
   open,
   onClose,
   extensionLeft,
+  hourlyRate,
+  currency,
   isPending,
   onSubmit,
 }: {
   open: boolean;
   onClose: () => void;
   extensionLeft: number;
+  hourlyRate: number;
+  currency: string;
   isPending: boolean;
   onSubmit: (minutes: number) => void;
 }) {
+  const symbol = currencySymbol(currency);
   const usablePresets = EXTEND_PRESETS_MIN.filter((m) => m <= extensionLeft);
   const initial =
     usablePresets[Math.min(1, usablePresets.length - 1)] || extensionLeft || 30;
@@ -393,13 +421,19 @@ function ExtendModal({
                   type="button"
                   onClick={() => setSelected(m)}
                   className={cn(
-                    'h-14 rounded-2xl border-2 font-display font-bold text-base transition-all',
+                    'h-16 rounded-2xl border-2 font-display transition-all flex flex-col items-center justify-center gap-0.5',
                     selected === m
                       ? 'border-brand-500 bg-brand-50 text-brand-700 shadow-[0_4px_14px_-4px_rgba(93,82,247,0.35)]'
                       : 'border-surface-200 bg-surface-0 text-ink-700 hover:border-ink-300'
                   )}
                 >
-                  {formatDuration(m)}
+                  <span className="font-bold text-base leading-none">
+                    {formatDuration(m)}
+                  </span>
+                  <span className="text-xs font-semibold leading-none text-success-600">
+                    +{symbol}
+                    {extensionCost(m, hourlyRate)}
+                  </span>
                 </button>
               ))}
             </div>
@@ -425,7 +459,11 @@ function ExtendModal({
                 onClick={() => onSubmit(selected)}
               >
                 <Timer className="h-4 w-4" />
-                Extend by {formatDuration(selected)}
+                Extend by {formatDuration(selected)} ·{' '}
+                <span className="text-success-200">
+                  +{symbol}
+                  {extensionCost(selected, hourlyRate)}
+                </span>
               </Button>
             </div>
           </motion.div>
