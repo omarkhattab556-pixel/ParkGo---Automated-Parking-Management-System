@@ -91,6 +91,34 @@ const accentStyles: Record<
   },
 };
 
+// Distinct palette for the three overview buttons ABOVE the map, so they never
+// read as duplicates of the action buttons below. Each has a coloured bar along
+// the TOP edge and a soft decorative blob tucked into the bottom-right corner.
+type TopAccent = 'info' | 'danger' | 'warning';
+const topAccentStyles: Record<
+  TopAccent,
+  { iconBox: string; icon: string; topBar: string; blob: string }
+> = {
+  info: {
+    iconBox: 'bg-info-50 border-info-100',
+    icon: 'text-info-600',
+    topBar: 'bg-info-500',
+    blob: 'bg-info-400/15',
+  },
+  danger: {
+    iconBox: 'bg-danger-50 border-danger-100',
+    icon: 'text-danger-600',
+    topBar: 'bg-danger-500',
+    blob: 'bg-danger-400/15',
+  },
+  warning: {
+    iconBox: 'bg-warning-50 border-warning-100',
+    icon: 'text-warning-600',
+    topBar: 'bg-warning-500',
+    blob: 'bg-warning-400/15',
+  },
+};
+
 // Formats a currency amount with the ILS shekel sign, no decimals.
 function money(currency: string, amount: number): string {
   const symbol = currency === 'ILS' ? '₪' : '';
@@ -310,20 +338,19 @@ export default function SubscriberDashboard() {
           delay={0.02}
           className="group relative overflow-hidden min-h-[132px] cursor-pointer"
         >
-          <span className={`absolute left-0 top-0 h-full w-1 ${accentStyles.brand.bar}`} />
-          <Link to={overviewCards[0].to} className="relative flex flex-col h-full pl-1.5">
-            <div className="flex items-center justify-between mb-3">
-              <span className={`h-11 w-11 rounded-2xl border flex items-center justify-center ${accentStyles.brand.iconBox}`}>
-                <CalendarClock className={`h-5 w-5 ${accentStyles.brand.icon}`} strokeWidth={2.4} />
+          <span className={`absolute inset-x-0 top-0 h-1 ${topAccentStyles.info.topBar}`} />
+          <span className={`pointer-events-none absolute -bottom-10 -right-10 h-28 w-28 rounded-full blur-2xl ${topAccentStyles.info.blob}`} />
+          <Link to={overviewCards[0].to} className="relative flex flex-col h-full">
+            <div className="flex items-center gap-3 mb-3">
+              <span className={`h-11 w-11 shrink-0 rounded-2xl border flex items-center justify-center ${topAccentStyles.info.iconBox}`}>
+                <CalendarClock className={`h-5 w-5 ${topAccentStyles.info.icon}`} strokeWidth={2.4} />
               </span>
-              <span className={`h-8 w-8 rounded-full border flex items-center justify-center ${accentStyles.brand.arrow}`}>
-                <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
-              </span>
+              <p className="text-[11px] uppercase tracking-[0.08em] font-semibold text-ink-500">
+                {overviewCards[0].label}
+              </p>
+              <ArrowRight className={`h-5 w-5 ml-auto group-hover:translate-x-1 transition-transform ${topAccentStyles.info.icon}`} />
             </div>
-            <p className="text-[11px] uppercase tracking-[0.08em] font-semibold text-ink-500">
-              {overviewCards[0].label}
-            </p>
-            <h3 className="font-display text-2xl font-bold tracking-tight leading-tight mt-0.5 text-ink-900">
+            <h3 className="font-display text-2xl font-bold tracking-tight leading-tight text-ink-900">
               {overviewCards[0].loading ? '—' : overviewCards[0].value}
             </h3>
             <p className="text-sm text-ink-500 mt-auto pt-3">
@@ -341,22 +368,21 @@ export default function SubscriberDashboard() {
           delay={0.06}
           className="group relative overflow-hidden min-h-[132px] cursor-pointer"
         >
-          <span className={`absolute left-0 top-0 h-full w-1 ${accentStyles.accent.bar}`} />
+          <span className={`absolute inset-x-0 top-0 h-1 ${topAccentStyles.danger.topBar}`} />
+          <span className={`pointer-events-none absolute -bottom-10 -right-10 h-28 w-28 rounded-full blur-2xl ${topAccentStyles.danger.blob}`} />
           <Link
             to="/subscriber/reservation-history"
-            className="relative flex flex-col h-full pl-1.5"
+            className="relative flex flex-col h-full"
           >
-            <div className="flex items-center justify-between mb-3">
-              <span className={`h-11 w-11 rounded-2xl border flex items-center justify-center ${accentStyles.accent.iconBox}`}>
-                <CalendarCheck className={`h-5 w-5 ${accentStyles.accent.icon}`} strokeWidth={2.4} />
+            <div className="flex items-center gap-3 mb-3">
+              <span className={`h-11 w-11 shrink-0 rounded-2xl border flex items-center justify-center ${topAccentStyles.danger.iconBox}`}>
+                <CalendarCheck className={`h-5 w-5 ${topAccentStyles.danger.icon}`} strokeWidth={2.4} />
               </span>
-              <span className={`h-8 w-8 rounded-full border flex items-center justify-center ${accentStyles.accent.arrow}`}>
-                <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
-              </span>
+              <p className="text-[11px] uppercase tracking-[0.08em] font-semibold text-ink-500">
+                Next reservation
+              </p>
+              <ArrowRight className={`h-5 w-5 ml-auto group-hover:translate-x-1 transition-transform ${topAccentStyles.danger.icon}`} />
             </div>
-            <p className="text-[11px] uppercase tracking-[0.08em] font-semibold text-ink-500">
-              Next reservation
-            </p>
             {reservations.isLoading ? (
               <h3 className="font-display text-2xl font-bold tracking-tight mt-0.5 text-ink-900">
                 —
@@ -370,7 +396,7 @@ export default function SubscriberDashboard() {
                   </span>
                   {/* Date — quieter, sits beside the time */}
                   <span className="flex items-center gap-1.5 text-sm font-medium text-ink-500 pb-0.5">
-                    <CalendarCheck className={`h-3.5 w-3.5 ${accentStyles.accent.icon}`} />
+                    <CalendarCheck className={`h-3.5 w-3.5 ${topAccentStyles.danger.icon}`} />
                     {formatDate(upcomingReservation.reservation_start)}
                   </span>
                 </div>
@@ -400,20 +426,19 @@ export default function SubscriberDashboard() {
           delay={0.1}
           className="group relative overflow-hidden min-h-[132px] cursor-pointer"
         >
-          <span className={`absolute left-0 top-0 h-full w-1 ${accentStyles.success.bar}`} />
-          <Link to={overviewCards[1].to} className="relative flex flex-col h-full pl-1.5">
-            <div className="flex items-center justify-between mb-3">
-              <span className={`h-11 w-11 rounded-2xl border flex items-center justify-center ${accentStyles.success.iconBox}`}>
-                <Wallet className={`h-5 w-5 ${accentStyles.success.icon}`} strokeWidth={2.4} />
+          <span className={`absolute inset-x-0 top-0 h-1 ${topAccentStyles.warning.topBar}`} />
+          <span className={`pointer-events-none absolute -bottom-10 -right-10 h-28 w-28 rounded-full blur-2xl ${topAccentStyles.warning.blob}`} />
+          <Link to={overviewCards[1].to} className="relative flex flex-col h-full">
+            <div className="flex items-center gap-3 mb-3">
+              <span className={`h-11 w-11 shrink-0 rounded-2xl border flex items-center justify-center ${topAccentStyles.warning.iconBox}`}>
+                <Wallet className={`h-5 w-5 ${topAccentStyles.warning.icon}`} strokeWidth={2.4} />
               </span>
-              <span className={`h-8 w-8 rounded-full border flex items-center justify-center ${accentStyles.success.arrow}`}>
-                <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
-              </span>
+              <p className="text-[11px] uppercase tracking-[0.08em] font-semibold text-ink-500">
+                {overviewCards[1].label}
+              </p>
+              <ArrowRight className={`h-5 w-5 ml-auto group-hover:translate-x-1 transition-transform ${topAccentStyles.warning.icon}`} />
             </div>
-            <p className="text-[11px] uppercase tracking-[0.08em] font-semibold text-ink-500">
-              {overviewCards[1].label}
-            </p>
-            <h3 className="font-display text-2xl font-bold tracking-tight leading-tight mt-0.5 text-ink-900">
+            <h3 className="font-display text-2xl font-bold tracking-tight leading-tight text-ink-900">
               {overviewCards[1].loading ? '—' : overviewCards[1].value}
             </h3>
             <p className="text-sm text-ink-500 mt-auto pt-3">
@@ -550,17 +575,17 @@ export default function SubscriberDashboard() {
             >
               <span className={`absolute left-0 top-0 h-full w-1 ${s.bar}`} />
               <Link to={a.to} className="relative flex flex-col h-full pl-1.5">
-                <div className="flex items-center justify-between mb-4">
-                  <span className={`h-11 w-11 rounded-2xl border flex items-center justify-center ${s.iconBox}`}>
+                <div className="flex items-center gap-3 mb-2">
+                  <span className={`h-11 w-11 shrink-0 rounded-2xl border flex items-center justify-center ${s.iconBox}`}>
                     <a.icon className={`h-5 w-5 ${s.icon}`} strokeWidth={2.4} />
                   </span>
-                  <span className={`h-8 w-8 rounded-full border flex items-center justify-center ${s.arrow}`}>
+                  <h3 className="font-display text-xl font-bold tracking-tight leading-tight text-ink-900">
+                    {a.title}
+                  </h3>
+                  <span className={`h-8 w-8 ml-auto shrink-0 rounded-full border flex items-center justify-center ${s.arrow}`}>
                     <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
                   </span>
                 </div>
-                <h3 className="font-display text-xl font-bold tracking-tight leading-tight text-ink-900">
-                  {a.title}
-                </h3>
                 <p className="text-sm text-ink-500 mt-auto pt-3">
                   {a.description}
                 </p>
