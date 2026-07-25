@@ -171,12 +171,15 @@ export function DashboardLayout({ items, brandColor, roleLabel, topBar, profileT
       </AnimatePresence>
 
       <main className="flex-1 min-w-0 pt-14 md:pt-0">
-        {/* Desktop top bar — minimal */}
-        <div className="hidden md:flex items-center justify-between sticky top-0 z-20 glass border-b border-surface-200/80 h-14 px-6">
-          <div className="flex items-center gap-2 text-sm text-ink-500">
-            {topBar}
+        {/* Desktop top bar — only rendered when a page actually provides content
+            for it, so pages without one don't show an empty glass strip. */}
+        {topBar && (
+          <div className="hidden md:flex items-center justify-between sticky top-0 z-20 glass border-b border-surface-200/80 h-14 px-6">
+            <div className="flex items-center gap-2 text-sm text-ink-500">
+              {topBar}
+            </div>
           </div>
-        </div>
+        )}
 
         <motion.div
           key={location.pathname}
