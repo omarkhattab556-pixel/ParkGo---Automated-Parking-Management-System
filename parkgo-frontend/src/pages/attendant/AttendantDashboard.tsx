@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -11,22 +11,24 @@ import {
   ArrowRight,
   Activity,
   Sparkles,
+  Cog,
+  Zap,
+  AlertTriangle,
   type LucideIcon,
 } from 'lucide-react';
 
 import { useAuthStore } from '@/store/authStore';
 import { useFacilityLoad } from '@/hooks/useParking';
-import { subscriberApi } from '@/api/subscriber.api';
 import { parkingApi } from '@/api/parking.api';
 import { facilityApi } from '@/api/facility.api';
 
-import { PageHeader, SectionHeader } from '@/components/ui/PageHeader';
+import { PageHeader } from '@/components/ui/PageHeader';
 import { BentoGrid, BentoCard } from '@/components/ui/Bento';
-import { StatTile } from '@/components/ui/StatTile';
 import { Badge } from '@/components/ui/Badge';
 import { GlowOrbs } from '@/components/ui/GlowOrbs';
 import { RadialGauge } from '@/components/charts/RadialGauge';
 import { ParkingLot3D, type ParkingSpot3D } from '@/components/3d/ParkingLot3D';
+import { cn } from '@/lib/utils';
 
 interface Action {
   to: string;
@@ -86,12 +88,6 @@ export default function AttendantDashboard() {
   const navigate = useNavigate();
   const load = useFacilityLoad(10_000);
 
-  const subscribers = useQuery({
-    queryKey: ['subscribers', 'list'],
-    queryFn: () => subscriberApi.list(),
-    refetchInterval: 60_000,
-  });
-
   const active = useQuery({
     queryKey: ['parking', 'active'],
     queryFn: () => parkingApi.active(),
@@ -102,6 +98,14 @@ export default function AttendantDashboard() {
     queryKey: ['facility', 'spaces'],
     queryFn: () => facilityApi.listSpaces(),
     refetchInterval: 15_000,
+  });
+
+  // Facility installers/robots status — powers the "Installers" tile so the
+  // attendant can spot a stuck or overloaded machine at a glance.
+  const status = useQuery({
+    queryKey: ['facility', 'status'],
+    queryFn: () => facilityApi.getStatus(),
+    refetchInterval: 10_000,
   });
 
   // Attendant view: show occupied vs free in real time, but do NOT mark
@@ -120,13 +124,59 @@ export default function AttendantDashboard() {
     }));
   }, [spaces.data]);
 
-  const totalSubscribers = subscribers.data?.length ?? 0;
-  const activeSubscribers =
-    subscribers.data?.filter((s) => s.subscriber?.status === 'active').length ??
-    0;
-  const inactiveSubscribers = totalSubscribers - activeSubscribers;
-  const parkedNow = active.data?.length ?? 0;
   const occupancyPercent = load.data?.occupancy_percent ?? 0;
+
+  // ── Installers (robots) status ──────────────────────────────────────────
+  // A machine is considered "stuck" when it's marked busy but its scheduled
+  // completion time has already passed — the operation should have finished.
+  const installers = status.data?.installers;
+  const installersFree = installers?.free ?? 0;
+  const installersBusy = installers?.busy ?? 0;
+  const installersTotal = installers?.total ?? 0;
+  const stuckInstallers = useMemo(() => {
+    const now = Date.now();
+    return (installers?.installers ?? []).filter(
+      (i) => !i.is_free && i.busy_until && new Date(i.busy_until).getTime() < now
+    ).length;
+  }, [installers]);
+  const installersHealthy = stuckInstallers === 0;
+
+  // ── Operations in the last 30 minutes ───────────────────────────────────
+  // Each drop-off (parking_date) and each pick-up (retrieval_time) within the
+  // window counts as one attendant-relevant operation. We keep the split so the
+  // tile can show how many were entries vs exits.
+  const { opsDropOffs, opsPickUps } = useMemo(() => {
+    const cutoff = Date.now() - 30 * 60_000;
+    let drops = 0;
+    let picks = 0;
+    for (const p of active.data ?? []) {
+      if (new Date(p.parking_date).getTime() >= cutoff) drops++;
+      if (p.retrieval_time && new Date(p.retrieval_time).getTime() >= cutoff)
+        picks++;
+    }
+    return { opsDropOffs: drops, opsPickUps: picks };
+  }, [active.data]);
+  const opsLast30 = opsDropOffs + opsPickUps;
+
+  // ── Overstays / about to overstay ───────────────────────────────────────
+  // Vehicles that have already exceeded their allowed time (overtime) or will
+  // within the next 15 minutes — the attendant may need to act on these.
+  const OVERSTAY_SOON_MIN = 15;
+  const { overstayNow, overstaySoon } = useMemo(() => {
+    const now = Date.now();
+    let over = 0;
+    let soon = 0;
+    for (const p of active.data ?? []) {
+      if (p.retrieval_time) continue; // already picked up
+      const endMs =
+        new Date(p.parking_date).getTime() + (p.max_time_minutes ?? 0) * 60_000;
+      const minsLeft = (endMs - now) / 60_000;
+      if (minsLeft <= 0) over++;
+      else if (minsLeft <= OVERSTAY_SOON_MIN) soon++;
+    }
+    return { overstayNow: over, overstaySoon: soon };
+  }, [active.data]);
+  const overstayTotal = overstayNow + overstaySoon;
 
   return (
     <div className="space-y-6 md:space-y-8">
@@ -154,7 +204,20 @@ export default function AttendantDashboard() {
         }
       />
 
-      <BentoGrid>
+      {/* SECTION 1 — Live facility view (gauge + 3D map) */}
+      <BentoCard span="" tone="glass" delay={0.02}>
+        <SectionTitle
+          icon={Activity}
+          tone="accent"
+          title="Live facility view"
+          description="Real-time occupancy and the 3D parking map"
+          actions={
+            <Badge tone="accent" dot size="md">
+              Live
+            </Badge>
+          }
+        />
+        <BentoGrid className="mt-2">
         {/* Live load gauge */}
         <BentoCard
           span="col-span-2 md:col-span-3 lg:col-span-4"
@@ -247,69 +310,107 @@ export default function AttendantDashboard() {
             </div>
           </div>
         </BentoCard>
+        </BentoGrid>
+      </BentoCard>
 
-        {/* KPI tiles */}
-        <BentoCard span="col-span-2 md:col-span-3 lg:col-span-4" delay={0.05}>
-          <StatTile
-            label="Parked now"
-            value={active.isLoading ? '—' : parkedNow}
-            hint={parkedNow === 1 ? 'vehicle' : 'vehicles'}
-            icon={Car}
-            iconTone="success"
-            loading={active.isLoading}
-          />
-        </BentoCard>
-        <BentoCard
-          span="col-span-2 md:col-span-3 lg:col-span-4"
-          tone="aurora"
+      {/* SECTION 2 — Shift metrics (the three operational KPI tiles) */}
+      <BentoCard span="" tone="glass" delay={0.06}>
+        <SectionTitle
+          icon={Gauge}
+          tone="brand"
+          title="Shift metrics"
+          description="Machines, live activity and vehicles to watch"
+        />
+        <BentoGrid className="mt-2">
+        {/* 1 · Installers / robots — spot a stuck or overloaded machine. */}
+        <MetricCard
+          to="/attendant/facility-status"
+          delay={0.05}
+          loading={status.isLoading}
+          icon={installersHealthy ? Cog : AlertTriangle}
+          tone={installersHealthy ? (installersBusy > 0 ? 'accent' : 'success') : 'danger'}
+          title="Parking machines"
+          value={
+            status.isLoading
+              ? '—'
+              : `${installersFree}/${installersTotal}`
+          }
+          valueSuffix="free"
+          status={
+            status.isLoading
+              ? 'Checking…'
+              : !installersHealthy
+              ? `${stuckInstallers} stuck`
+              : installersBusy > 0
+              ? 'Working'
+              : 'All idle'
+          }
+          alert={!installersHealthy}
+          stats={[
+            { label: 'Working now', value: installersBusy },
+            {
+              label: 'Stuck',
+              value: stuckInstallers,
+              tone: stuckInstallers > 0 ? 'danger' : undefined,
+            },
+          ]}
+        />
+
+        {/* 2 · Operations in the last 30 minutes — live workload pulse. */}
+        <MetricCard
           delay={0.08}
-          className="relative overflow-hidden"
-        >
-          <GlowOrbs variant="brand" />
-          <div className="relative">
-            <StatTile
-              label="Active subscribers"
-              value={subscribers.isLoading ? '—' : activeSubscribers}
-              hint={`${inactiveSubscribers} inactive · ${totalSubscribers} total`}
-              icon={Users}
-              variant="dark"
-              loading={subscribers.isLoading}
-            />
-          </div>
-        </BentoCard>
+          loading={active.isLoading}
+          icon={Zap}
+          tone="brand"
+          title="Activity · last 30 min"
+          value={active.isLoading ? '—' : opsLast30}
+          valueSuffix={opsLast30 === 1 ? 'operation' : 'operations'}
+          status={opsLast30 > 0 ? 'Live' : 'Quiet'}
+          stats={[
+            { label: 'Cars in', value: opsDropOffs },
+            { label: 'Cars out', value: opsPickUps },
+          ]}
+        />
 
-        <BentoCard span="col-span-2 md:col-span-3 lg:col-span-4" delay={0.1}>
-          <StatTile
-            label="Total subscribers"
-            value={subscribers.isLoading ? '—' : totalSubscribers}
-            hint="across all statuses"
-            icon={Users}
-            iconTone="brand"
-            loading={subscribers.isLoading}
-          />
-        </BentoCard>
-        <BentoCard span="col-span-2 md:col-span-3 lg:col-span-4" delay={0.12}>
-          <StatTile
-            label="Free spots"
-            value={
-              load.isLoading
-                ? '—'
-                : `${load.data?.free ?? 0} / ${load.data?.total ?? 0}`
-            }
-            hint={`${occupancyPercent.toFixed(0)}% occupied`}
-            icon={Gauge}
-            iconTone="info"
-            loading={load.isLoading}
-          />
-        </BentoCard>
+        {/* 3 · Overstays / about to overstay — who to watch right now. */}
+        <MetricCard
+          to="/attendant/active-parkings"
+          delay={0.1}
+          loading={active.isLoading}
+          icon={AlertTriangle}
+          tone={overstayNow > 0 ? 'danger' : overstaySoon > 0 ? 'accent' : 'success'}
+          title="Overstays"
+          value={active.isLoading ? '—' : overstayTotal}
+          valueSuffix={overstayTotal === 1 ? 'vehicle' : 'vehicles'}
+          status={
+            overstayNow > 0
+              ? 'Action needed'
+              : overstaySoon > 0
+              ? 'Watch soon'
+              : 'All on time'
+          }
+          alert={overstayNow > 0}
+          stats={[
+            {
+              label: 'Over limit',
+              value: overstayNow,
+              tone: overstayNow > 0 ? 'danger' : undefined,
+            },
+            {
+              label: 'Ending ≤15m',
+              value: overstaySoon,
+              tone: overstaySoon > 0 ? 'accent' : undefined,
+            },
+          ]}
+        />
+        </BentoGrid>
+      </BentoCard>
 
-        {/* Quick actions banner */}
-        <BentoCard
-          span="col-span-2 md:col-span-6 lg:col-span-12"
-          tone="glass"
-          delay={0.14}
-        >
-          <SectionHeader
+      {/* SECTION 3 — Quick actions */}
+      <BentoCard span="" tone="glass" delay={0.1}>
+          <SectionTitle
+            icon={Sparkles}
+            tone="success"
             title="Quick actions"
             description="Most-used controls on your daily shift"
             actions={
@@ -349,10 +450,200 @@ export default function AttendantDashboard() {
               </Link>
             ))}
           </div>
-        </BentoCard>
-      </BentoGrid>
+      </BentoCard>
     </div>
   );
+}
+
+/* ============================================================
+   SectionTitle — a section heading with an icon tile, matching the look of
+   the "Quick actions" header. Used to box each of the three dashboard parts.
+   ============================================================ */
+const sectionTitleTone: Record<MetricTone, string> = {
+  brand: 'bg-brand-50 text-brand-600',
+  accent: 'bg-accent-50 text-accent-600',
+  success: 'bg-success-50 text-success-600',
+  danger: 'bg-danger-50 text-danger-600',
+};
+
+function SectionTitle({
+  icon: Icon,
+  tone,
+  title,
+  description,
+  actions,
+}: {
+  icon: LucideIcon;
+  tone: MetricTone;
+  title: string;
+  description?: string;
+  actions?: ReactNode;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 mb-1">
+      <div className="flex items-center gap-3 min-w-0">
+        <span
+          className={cn(
+            'h-11 w-11 shrink-0 rounded-2xl flex items-center justify-center',
+            sectionTitleTone[tone]
+          )}
+        >
+          <Icon className="h-5 w-5" strokeWidth={2.3} />
+        </span>
+        <div className="min-w-0">
+          <h2 className="font-display text-base md:text-lg font-bold text-ink-900 tracking-tight leading-tight">
+            {title}
+          </h2>
+          {description && (
+            <p className="text-xs md:text-sm text-ink-500 mt-0.5 truncate">
+              {description}
+            </p>
+          )}
+        </div>
+      </div>
+      {actions && <div className="shrink-0">{actions}</div>}
+    </div>
+  );
+}
+
+/* ============================================================
+   MetricCard — a tall, self-explanatory KPI card used for the three
+   operational tiles. White background, clear header, a big value, a status
+   pill, and a two-cell breakdown row so each number is labelled.
+   ============================================================ */
+type MetricTone = 'brand' | 'accent' | 'success' | 'danger';
+
+const metricTone: Record<
+  MetricTone,
+  { iconBox: string; pill: string }
+> = {
+  brand: { iconBox: 'bg-brand-50 text-brand-600', pill: 'bg-brand-50 text-brand-700' },
+  accent: { iconBox: 'bg-accent-50 text-accent-600', pill: 'bg-accent-50 text-accent-700' },
+  success: { iconBox: 'bg-success-50 text-success-600', pill: 'bg-success-50 text-success-700' },
+  danger: { iconBox: 'bg-danger-50 text-danger-600', pill: 'bg-danger-50 text-danger-700' },
+};
+
+interface MetricStat {
+  label: string;
+  value: number;
+  tone?: 'danger' | 'accent';
+}
+
+function MetricCard({
+  to,
+  delay = 0,
+  loading,
+  icon: Icon,
+  tone,
+  title,
+  value,
+  valueSuffix,
+  status,
+  alert = false,
+  stats,
+}: {
+  to?: string;
+  delay?: number;
+  loading?: boolean;
+  icon: LucideIcon;
+  tone: MetricTone;
+  title: string;
+  value: ReactNode;
+  valueSuffix?: string;
+  status: string;
+  alert?: boolean;
+  stats: MetricStat[];
+}) {
+  const t = metricTone[tone];
+
+  const body = (
+    <BentoCard
+      span=""
+      delay={delay}
+      interactive={!!to}
+      className={cn(
+        'h-full min-h-[190px] flex flex-col',
+        alert && 'border-danger-200 bg-danger-50/40'
+      )}
+    >
+      {/* Header: icon + title, status pill on the right */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span
+            className={cn(
+              'h-10 w-10 shrink-0 rounded-2xl flex items-center justify-center',
+              t.iconBox
+            )}
+          >
+            <Icon className="h-5 w-5" strokeWidth={2.3} />
+          </span>
+          <p className="font-display text-sm font-bold text-ink-800 leading-tight truncate">
+            {title}
+          </p>
+        </div>
+        <span
+          className={cn(
+            'shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide',
+            t.pill
+          )}
+        >
+          {status}
+        </span>
+      </div>
+
+      {/* Big value */}
+      <div className="mt-4 flex items-end gap-2">
+        <span
+          className={cn(
+            'font-display text-4xl font-bold tabular tracking-tight text-ink-900',
+            loading && 'animate-pulse text-ink-200'
+          )}
+        >
+          {loading ? '—' : value}
+        </span>
+        {valueSuffix && !loading && (
+          <span className="text-sm font-medium text-ink-500 pb-1.5">
+            {valueSuffix}
+          </span>
+        )}
+      </div>
+
+      {/* Breakdown row — every number is clearly labelled */}
+      <div className="mt-auto pt-4 grid grid-cols-2 gap-2">
+        {stats.map((s) => (
+          <div
+            key={s.label}
+            className="rounded-xl bg-surface-100 border border-surface-200 px-3 py-2"
+          >
+            <p className="text-[10px] uppercase tracking-wider font-semibold text-ink-500">
+              {s.label}
+            </p>
+            <p
+              className={cn(
+                'font-display text-lg font-bold tabular leading-none mt-0.5',
+                s.tone === 'danger'
+                  ? 'text-danger-600'
+                  : s.tone === 'accent'
+                  ? 'text-accent-600'
+                  : 'text-ink-900'
+              )}
+            >
+              {loading ? '—' : s.value}
+            </p>
+          </div>
+        ))}
+      </div>
+    </BentoCard>
+  );
+
+  if (to) {
+    return (
+      <Link to={to} className="col-span-2 md:col-span-3 lg:col-span-4">
+        {body}
+      </Link>
+    );
+  }
+  return <div className="col-span-2 md:col-span-3 lg:col-span-4">{body}</div>;
 }
 
 function DarkPill({
