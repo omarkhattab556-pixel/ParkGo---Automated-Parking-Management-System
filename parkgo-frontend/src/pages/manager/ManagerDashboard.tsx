@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -6,12 +6,21 @@ import {
   MinusSquare,
   BarChart3,
   Users,
-  Car,
   TrendingUp,
+  TrendingDown,
   Clock,
   ArrowRight,
   Activity,
   Wrench,
+  Wallet,
+  ShieldCheck,
+  AlertTriangle,
+  Info,
+  ChevronRight,
+  Gauge,
+  Cog,
+  Sparkles,
+  type LucideIcon,
 } from 'lucide-react';
 import {
   AreaChart,
@@ -37,8 +46,40 @@ import { Badge } from '@/components/ui/Badge';
 import { GlowOrbs } from '@/components/ui/GlowOrbs';
 import { RadialGauge } from '@/components/charts/RadialGauge';
 import { OccupancyDonut } from '@/components/charts/OccupancyDonut';
-import { HourHeatmap } from '@/components/charts/HourHeatmap';
+import { HourlyOccupancyChart } from '@/components/charts/HourlyOccupancyChart';
 import { ParkingLot3D, type ParkingSpot3D } from '@/components/3d/ParkingLot3D';
+
+// A single real-time operational alert shown in the live activity panel.
+type AlertLevel = 'danger' | 'warning' | 'info';
+interface OpAlert {
+  id: string;
+  level: AlertLevel;
+  message: string;
+  /** epoch ms the event happened — rendered as a relative "N min ago". */
+  at: number;
+}
+
+// Currency formatter — matches the reports pages. Compacts large sums to "K".
+function money(currency: string, amount: number, compact = false): string {
+  const symbol = currency === 'ILS' ? '₪' : '';
+  if (compact && Math.abs(amount) >= 1000) {
+    return `${symbol}${(amount / 1000).toLocaleString(undefined, {
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1,
+    })}K`;
+  }
+  return `${symbol}${Math.round(amount).toLocaleString()}`;
+}
+
+// Compact "N min ago" / "just now" relative label for alert timestamps.
+function agoLabel(at: number, now: number): string {
+  const secs = Math.max(0, Math.round((now - at) / 1000));
+  if (secs < 60) return 'just now';
+  const mins = Math.round(secs / 60);
+  if (mins < 60) return `${mins} min ago`;
+  const hrs = Math.round(mins / 60);
+  return `${hrs}h ago`;
+}
 
 const quickActions = [
   {
@@ -64,10 +105,70 @@ const quickActions = [
   },
 ];
 
+// Per-section accent for the boxed section headers.
+type SectionTone = 'brand' | 'accent' | 'success' | 'info';
+const sectionToneClasses: Record<SectionTone, string> = {
+  brand: 'bg-brand-50 text-brand-600',
+  accent: 'bg-accent-50 text-accent-600',
+  success: 'bg-success-50 text-success-600',
+  info: 'bg-info-50 text-info-600',
+};
+
+// A boxed section: a shadowed glass card with an icon + title + description
+// header, wrapping a part of the dashboard. Same pattern as the attendant view.
+function SectionShell({
+  icon: Icon,
+  tone,
+  title,
+  description,
+  actions,
+  children,
+}: {
+  icon: LucideIcon;
+  tone: SectionTone;
+  title: string;
+  description?: string;
+  actions?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-3xl border border-surface-200 bg-surface-0 shadow-card p-4 md:p-5">
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <div className="flex items-center gap-3 min-w-0">
+          <span
+            className={`h-11 w-11 shrink-0 rounded-2xl flex items-center justify-center ${sectionToneClasses[tone]}`}
+          >
+            <Icon className="h-5 w-5" strokeWidth={2.3} />
+          </span>
+          <div className="min-w-0">
+            <h2 className="font-display text-base md:text-lg font-bold text-ink-900 tracking-tight leading-tight">
+              {title}
+            </h2>
+            {description && (
+              <p className="text-xs md:text-sm text-ink-500 mt-0.5 truncate">
+                {description}
+              </p>
+            )}
+          </div>
+        </div>
+        {actions && <div className="shrink-0">{actions}</div>}
+      </div>
+      {children}
+    </section>
+  );
+}
+
 export default function ManagerDashboard() {
   const user = useAuthStore((s) => s.user);
   const navigate = useNavigate();
   const load = useFacilityLoad(15_000);
+
+  // 1-second clock so busy-installer countdowns tick smoothly in real time.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
 
   const occupancy = useQuery({
     queryKey: ['reports', 'occupancy', 'this-month'],
@@ -78,6 +179,13 @@ export default function ManagerDashboard() {
   const behavior = useQuery({
     queryKey: ['reports', 'behavior', 'this-month'],
     queryFn: () => reportsApi.behavior(),
+    refetchInterval: 5 * 60_000,
+  });
+
+  // Revenue breakdown — powers the new "Revenue breakdown" donut card.
+  const revenue = useQuery({
+    queryKey: ['reports', 'revenue', 'this-month'],
+    queryFn: () => reportsApi.revenue(),
     refetchInterval: 5 * 60_000,
   });
 
@@ -96,7 +204,11 @@ export default function ManagerDashboard() {
   const installers = useQuery({
     queryKey: ['facility', 'installers'],
     queryFn: () => facilityApi.listInstallers(),
-    refetchInterval: 30_000,
+    // Installer status must feel live — poll often and keep polling even when
+    // the tab is in the background, and don't serve stale cached data.
+    refetchInterval: 5_000,
+    refetchIntervalInBackground: true,
+    staleTime: 0,
   });
 
   const spaces = useQuery({
@@ -127,6 +239,96 @@ export default function ManagerDashboard() {
     date: d.date,
     value: d.occupancy,
   }));
+
+  // Today-vs-yesterday occupancy delta (percentage points) for the hero tile.
+  const occupancyDelta = useMemo(() => {
+    const daily = occupancy.data?.daily ?? [];
+    if (daily.length < 2) return null;
+    const today = daily[daily.length - 1].occupancy;
+    const yesterday = daily[daily.length - 2].occupancy;
+    return Math.round(today - yesterday);
+  }, [occupancy.data]);
+
+  // Live facility counts — drive the enriched Avg occupancy legend & map badges.
+  const occupiedNow = load.data?.occupied ?? 0;
+  const reservedNow = load.data?.reserved ?? 0;
+  const freeNow = load.data?.free ?? 0;
+
+  // Revenue breakdown segments (parking / extensions / late fines / subscription).
+  const revenueCurrency = revenue.data?.currency ?? 'ILS';
+  const revenueSegments = useMemo(
+    () => [
+      { key: 'parking', label: 'Parking', value: revenue.data?.parking_revenue ?? 0, color: '#5d52f7' },
+      { key: 'extension', label: 'Extensions', value: revenue.data?.extension_revenue ?? 0, color: '#10b981' },
+      { key: 'late', label: 'Late fines', value: revenue.data?.late_revenue ?? 0, color: '#f97316' },
+      { key: 'subscription', label: 'Subscription', value: revenue.data?.subscription_revenue ?? 0, color: '#38bdf8' },
+    ],
+    [revenue.data]
+  );
+  const revenueTotal = revenue.data?.total_revenue ?? 0;
+
+  // ── Live operational alerts / activity log ──────────────────────────────
+  // Built entirely from real-time data (active parkings + installers + load),
+  // most-urgent first. `now` (1-second clock) keeps the "ago" labels fresh.
+  const alerts = useMemo<OpAlert[]>(() => {
+    const list: OpAlert[] = [];
+
+    for (const p of active.data ?? []) {
+      const start = new Date(p.parking_date).getTime();
+      const endMs = start + (p.max_time_minutes ?? 0) * 60_000;
+      const minsOver = (now - endMs) / 60_000;
+      const minsLeft = (endMs - now) / 60_000;
+      if (minsOver > 0) {
+        list.push({
+          id: `over-${p.parking_code}`,
+          level: 'danger',
+          message: `Vehicle #${p.parking_space} exceeded parking time`,
+          at: endMs,
+        });
+      } else if (minsLeft <= 15) {
+        list.push({
+          id: `soon-${p.parking_code}`,
+          level: 'warning',
+          message: `Vehicle #${p.parking_space} ending in ${Math.max(
+            1,
+            Math.round(minsLeft)
+          )} min`,
+          at: now,
+        });
+      }
+    }
+
+    for (const i of installers.data ?? []) {
+      if (!i.is_free && i.busy_until) {
+        const busyMs = new Date(i.busy_until).getTime();
+        // Flag machines that should have finished but are still marked busy.
+        if (busyMs < now) {
+          const stuckMin = Math.max(1, Math.round((now - busyMs) / 60_000));
+          list.push({
+            id: `stuck-${i.installer_id}`,
+            level: 'warning',
+            message: `${i.installer_name} has been busy for ${stuckMin} min`,
+            at: busyMs,
+          });
+        }
+      }
+    }
+
+    if (reservedNow > 0) {
+      list.push({
+        id: 'reservations-soon',
+        level: 'info',
+        message: `${reservedNow} reservation${reservedNow > 1 ? 's' : ''} holding a space`,
+        at: now,
+      });
+    }
+
+    // Most urgent first (danger → warning → info), then most recent.
+    const rank = { danger: 0, warning: 1, info: 2 } as const;
+    return list
+      .sort((a, b) => rank[a.level] - rank[b.level] || b.at - a.at)
+      .slice(0, 6);
+  }, [active.data, installers.data, reservedNow, now]);
 
   const lotSpots = useMemo<ParkingSpot3D[]>(() => {
     const fromApi = spaces.data ?? [];
@@ -167,6 +369,18 @@ export default function ManagerDashboard() {
         }
       />
 
+      {/* SECTION 1 — Live facility (occupancy gauge + 3D map) */}
+      <SectionShell
+        icon={Activity}
+        tone="accent"
+        title="Live facility"
+        description="Real-time occupancy and the 3D parking map"
+        actions={
+          <Badge tone="success" dot size="md">
+            Live
+          </Badge>
+        }
+      >
       <BentoGrid>
         {/* Occupancy gauge — hero */}
         <BentoCard
@@ -191,10 +405,10 @@ export default function ManagerDashboard() {
             Compared with prior month
           </p>
 
-          <div className="relative flex-1 flex items-center justify-center my-4">
+          <div className="relative flex items-center justify-center my-4">
             <RadialGauge
               value={occupancy.data?.average_occupancy ?? 0}
-              size={200}
+              size={180}
               thickness={16}
               tone="brand"
               inverted
@@ -202,6 +416,37 @@ export default function ManagerDashboard() {
               sublabel={`${occupancy.data?.peak_hours_occupancy?.toFixed(0) ?? '—'}% peak`}
             />
           </div>
+
+          {/* Live breakdown — occupied / reserved / free, like the reference. */}
+          <div className="relative grid grid-cols-3 gap-2">
+            <OccStat label="Occupied" value={occupiedNow} dot="bg-danger-400" />
+            <OccStat label="Reserved" value={reservedNow} dot="bg-warning-400" />
+            <OccStat label="Free" value={freeNow} dot="bg-success-400" />
+          </div>
+
+          {/* Today vs yesterday delta */}
+          {occupancyDelta != null && (
+            <div className="relative mt-3 flex items-center justify-between rounded-xl bg-white/5 border border-white/10 px-3 py-2">
+              <span className="text-xs text-white/60">Today vs yesterday</span>
+              <span
+                className={`inline-flex items-center gap-1 text-sm font-bold tabular ${
+                  occupancyDelta > 0
+                    ? 'text-danger-300'
+                    : occupancyDelta < 0
+                    ? 'text-success-300'
+                    : 'text-white/70'
+                }`}
+              >
+                {occupancyDelta > 0 ? (
+                  <TrendingUp className="h-3.5 w-3.5" />
+                ) : occupancyDelta < 0 ? (
+                  <TrendingDown className="h-3.5 w-3.5" />
+                ) : null}
+                {occupancyDelta > 0 ? '+' : ''}
+                {occupancyDelta}%
+              </span>
+            </div>
+          )}
 
           {sparkDaily.length > 1 && (
             <div className="relative h-20 -mx-2">
@@ -254,10 +499,13 @@ export default function ManagerDashboard() {
             actions={
               <div className="flex items-center gap-2">
                 <Badge tone="success" dot size="md">
-                  {load.data?.free ?? 0} free
+                  {freeNow} free
                 </Badge>
                 <Badge tone="danger" dot size="md">
-                  {load.data?.occupied ?? 0} occupied
+                  {occupiedNow} occupied
+                </Badge>
+                <Badge tone="warning" dot size="md">
+                  {reservedNow} reserved
                 </Badge>
               </div>
             }
@@ -279,20 +527,30 @@ export default function ManagerDashboard() {
             )}
           </div>
         </BentoCard>
+      </BentoGrid>
+      </SectionShell>
 
-        {/* KPI tiles */}
+      {/* SECTION 2 — Key metrics */}
+      <SectionShell
+        icon={Gauge}
+        tone="brand"
+        title="Key metrics"
+        description="This month's headline numbers"
+      >
+      <BentoGrid>
+        {/* KPI tiles — "Free now" removed (now covered by Avg occupancy). */}
         <BentoCard span="col-span-2 md:col-span-3 lg:col-span-3" delay={0.08}>
           <StatTile
-            label="Free now"
-            value={
-              load.isLoading
-                ? '—'
-                : `${load.data?.free ?? 0} / ${load.data?.total ?? 0}`
+            label="Revenue · this month"
+            value={revenue.isLoading ? '—' : money(revenueCurrency, revenueTotal, true)}
+            hint={
+              revenue.data
+                ? `${money(revenueCurrency, revenue.data.average_per_subscriber)} / subscriber`
+                : undefined
             }
-            hint={`${load.data?.occupancy_percent?.toFixed(0) ?? 0}% occupied`}
-            icon={Car}
+            icon={Wallet}
             iconTone="success"
-            loading={load.isLoading}
+            loading={revenue.isLoading}
           />
         </BentoCard>
         <BentoCard span="col-span-2 md:col-span-3 lg:col-span-3" delay={0.1}>
@@ -337,18 +595,117 @@ export default function ManagerDashboard() {
             loading={occupancy.isLoading}
           />
         </BentoCard>
+      </BentoGrid>
+      </SectionShell>
 
-        {/* Hourly heatmap — wide */}
+      {/* SECTION 3 — Open operational alerts (real-time activity log) */}
+      <SectionShell
+        icon={ShieldCheck}
+        tone="info"
+        title="Open operational alerts"
+        description="Live — what needs attention right now"
+        actions={
+          <Badge tone={alerts.length ? 'danger' : 'success'} dot size="md">
+            {alerts.length ? `${alerts.length} open` : 'All clear'}
+          </Badge>
+        }
+      >
+        <div className="space-y-2">
+          {alerts.map((al) => (
+            <AlertRow key={al.id} alert={al} now={now} />
+          ))}
+          {alerts.length === 0 && (
+            <div className="flex items-center gap-3 rounded-2xl bg-success-50 border border-success-100 px-4 py-3">
+              <ShieldCheck className="h-5 w-5 text-success-600 shrink-0" />
+              <p className="text-sm text-success-700 font-medium">
+                No open alerts — everything is running smoothly.
+              </p>
+            </div>
+          )}
+        </div>
+      </SectionShell>
+
+      {/* SECTION 4 — Analytics (occupancy, revenue, session duration) */}
+      <SectionShell
+        icon={BarChart3}
+        tone="brand"
+        title="Analytics"
+        description="Occupancy, revenue and session trends this month"
+      >
+      <BentoGrid>
+        {/* Hourly occupancy — clear column chart, coloured by real load level */}
         <BentoCard
-          span="col-span-2 md:col-span-6 lg:col-span-8"
+          span="col-span-2 md:col-span-3 lg:col-span-4"
           tone="surface"
           delay={0.16}
+          className="flex flex-col justify-center"
         >
           <SectionHeader
-            title="Hourly occupancy heatmap"
-            description="Darker = busier hour"
+            title="Hourly occupancy"
+            description="Average % busy by hour of day"
           />
-          <HourHeatmap values={occupancy.data?.hourly_heatmap ?? new Array(24).fill(0)} />
+          <HourlyOccupancyChart
+            values={occupancy.data?.hourly_heatmap ?? new Array(24).fill(0)}
+          />
+        </BentoCard>
+
+        {/* Revenue breakdown — where the money comes from this month */}
+        <BentoCard
+          span="col-span-2 md:col-span-3 lg:col-span-4"
+          tone="surface"
+          delay={0.17}
+          className="flex flex-col items-center"
+        >
+          <SectionHeader
+            title="Revenue breakdown"
+            description="Income sources this month"
+            className="w-full"
+            actions={
+              <Link
+                to="/manager/reports"
+                className="text-xs font-semibold text-brand-700 hover:text-brand-800 inline-flex items-center gap-1"
+              >
+                Details <ArrowRight className="h-3 w-3" />
+              </Link>
+            }
+          />
+          <OccupancyDonut
+            size={180}
+            thickness={22}
+            segments={revenueSegments}
+            centerValue={
+              revenue.isLoading ? '—' : money(revenueCurrency, revenueTotal, true)
+            }
+            centerLabel="Total revenue"
+          />
+          <div className="w-full mt-4 space-y-1.5">
+            {revenueSegments.map((s) => {
+              const pct =
+                revenueTotal > 0 ? Math.round((s.value / revenueTotal) * 100) : 0;
+              return (
+                <div
+                  key={s.key}
+                  className="flex items-center justify-between text-sm"
+                >
+                  <span className="flex items-center gap-2 text-ink-600">
+                    <span
+                      className="h-2.5 w-2.5 rounded-full"
+                      style={{ background: s.color }}
+                    />
+                    {s.label}
+                  </span>
+                  <span className="flex items-center gap-2">
+                    <span className="font-semibold text-ink-900 tabular">
+                      {money(revenueCurrency, s.value)}
+                    </span>
+                    <span className="text-xs text-ink-400 tabular w-8 text-right">
+                      {pct}%
+                    </span>
+                  </span>
+                </div>
+              );
+            })}
+          </div>
         </BentoCard>
 
         {/* Duration donut */}
@@ -391,7 +748,17 @@ export default function ManagerDashboard() {
             <Legend tone="bg-accent-500" label="> 4h" value={`${behavior.data?.distribution_percent.over_4h?.toFixed(0) ?? 0}%`} />
           </div>
         </BentoCard>
+      </BentoGrid>
+      </SectionShell>
 
+      {/* SECTION 5 — Operations (installers + active parkings) */}
+      <SectionShell
+        icon={Cog}
+        tone="success"
+        title="Operations"
+        description="Machines and vehicles on site right now"
+      >
+      <BentoGrid>
         {/* Installers status */}
         <BentoCard
           span="col-span-2 md:col-span-3 lg:col-span-4"
@@ -400,15 +767,25 @@ export default function ManagerDashboard() {
         >
           <SectionHeader
             title="Installers"
-            description="Robotic shuttle status"
+            description="Robotic shuttle status · live"
             actions={
-              <Badge tone="brand" size="md">
-                {installers.data?.filter((i) => i.is_free).length ?? 0} / {installers.data?.length ?? 0}
+              <Badge tone={installers.isFetching ? 'success' : 'brand'} dot size="md">
+                {installers.data?.filter((i) => i.is_free).length ?? 0} / {installers.data?.length ?? 0} idle
               </Badge>
             }
           />
           <ul className="space-y-2 mt-2">
-            {(installers.data ?? []).slice(0, 5).map((i) => (
+            {(installers.data ?? []).slice(0, 5).map((i) => {
+              const busyLeft =
+                !i.is_free && i.busy_until
+                  ? Math.max(
+                      0,
+                      Math.ceil(
+                        (new Date(i.busy_until).getTime() - now) / 1000
+                      )
+                    )
+                  : null;
+              return (
               <li
                 key={i.installer_id}
                 className="flex items-center justify-between p-2.5 rounded-xl bg-surface-50 border border-surface-200"
@@ -424,10 +801,15 @@ export default function ManagerDashboard() {
                   </span>
                 </div>
                 <Badge tone={i.is_free ? 'success' : 'warning'} size="sm">
-                  {i.is_free ? 'Idle' : 'Busy'}
+                  {i.is_free
+                    ? 'Idle'
+                    : busyLeft != null && busyLeft > 0
+                    ? `Busy · ${busyLeft}s`
+                    : 'Busy'}
                 </Badge>
               </li>
-            ))}
+              );
+            })}
             {(installers.data?.length ?? 0) === 0 && (
               <li className="text-sm text-ink-500 py-4 text-center">
                 No installers configured.
@@ -476,6 +858,17 @@ export default function ManagerDashboard() {
           </div>
         </BentoCard>
 
+      </BentoGrid>
+      </SectionShell>
+
+      {/* SECTION 6 — Quick actions */}
+      <SectionShell
+        icon={Sparkles}
+        tone="accent"
+        title="Quick actions"
+        description="Reports and facility controls"
+      >
+      <BentoGrid>
         {/* Quick actions */}
         {quickActions.map((a, i) => (
           <BentoCard
@@ -502,8 +895,11 @@ export default function ManagerDashboard() {
             </Link>
           </BentoCard>
         ))}
+      </BentoGrid>
+      </SectionShell>
 
-        {/* Maintenance shortcut */}
+      {/* Maintenance shortcut — standalone CTA banner */}
+      <BentoGrid>
         <BentoCard
           span="col-span-2 md:col-span-6 lg:col-span-12"
           tone="glass"
@@ -533,6 +929,73 @@ export default function ManagerDashboard() {
           </Link>
         </BentoCard>
       </BentoGrid>
+    </div>
+  );
+}
+
+// A single row in the live operational-alerts panel, styled by severity.
+const alertStyle: Record<
+  AlertLevel,
+  { row: string; iconBox: string; icon: LucideIcon }
+> = {
+  danger: {
+    row: 'bg-danger-50/60 border-danger-100',
+    iconBox: 'bg-danger-100 text-danger-600',
+    icon: AlertTriangle,
+  },
+  warning: {
+    row: 'bg-warning-50/60 border-warning-100',
+    iconBox: 'bg-warning-100 text-warning-600',
+    icon: AlertTriangle,
+  },
+  info: {
+    row: 'bg-info-50/60 border-info-100',
+    iconBox: 'bg-info-100 text-info-600',
+    icon: Info,
+  },
+};
+
+function AlertRow({ alert, now }: { alert: OpAlert; now: number }) {
+  const s = alertStyle[alert.level];
+  const Icon = s.icon;
+  return (
+    <div
+      className={`flex items-center gap-3 rounded-2xl border px-3 py-2.5 ${s.row}`}
+    >
+      <span
+        className={`h-8 w-8 shrink-0 rounded-xl flex items-center justify-center ${s.iconBox}`}
+      >
+        <Icon className="h-4 w-4" strokeWidth={2.3} />
+      </span>
+      <p className="text-sm font-medium text-ink-800 flex-1 min-w-0 truncate">
+        {alert.message}
+      </p>
+      <span className="text-xs text-ink-400 shrink-0 tabular">
+        {agoLabel(alert.at, now)}
+      </span>
+      <ChevronRight className="h-4 w-4 text-ink-300 shrink-0" />
+    </div>
+  );
+}
+
+function OccStat({
+  label,
+  value,
+  dot,
+}: {
+  label: string;
+  value: number;
+  dot: string;
+}) {
+  return (
+    <div className="rounded-xl bg-white/5 border border-white/10 p-2 text-center">
+      <p className="text-[9px] uppercase font-semibold text-white/60 tracking-wider inline-flex items-center gap-1">
+        <span className={`h-1.5 w-1.5 rounded-full ${dot}`} />
+        {label}
+      </p>
+      <p className="font-display text-base font-bold tabular text-white mt-0.5">
+        {value}
+      </p>
     </div>
   );
 }
