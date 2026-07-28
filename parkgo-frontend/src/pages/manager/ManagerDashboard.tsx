@@ -267,6 +267,38 @@ export default function ManagerDashboard() {
   );
   const revenueTotal = revenue.data?.total_revenue ?? 0;
 
+  // ── Floor capacity health ───────────────────────────────────────────────
+  // Per-floor utilisation, busiest floor first. The headline occupancy % hides
+  // this: the facility can sit at 60% overall while one floor is completely
+  // full and drivers are circling it, so the manager needs the split.
+  const floorHealth = useMemo(() => {
+    const map = new Map<
+      string,
+      { location: string; total: number; used: number; reserved: number }
+    >();
+
+    for (const s of spaces.data ?? []) {
+      const key = (s.location && s.location.trim()) || 'Unzoned';
+      if (!map.has(key)) {
+        map.set(key, { location: key, total: 0, used: 0, reserved: 0 });
+      }
+      const b = map.get(key)!;
+      b.total += 1;
+      if (s.in_use) b.used += 1;
+      else if (s.reserved) b.reserved += 1;
+    }
+
+    return Array.from(map.values())
+      .map((f) => ({
+        ...f,
+        free: f.total - f.used - f.reserved,
+        // Reserved spaces are unavailable to a walk-in, so they count towards
+        // how "full" the floor feels on the ground.
+        pct: f.total ? Math.round(((f.used + f.reserved) / f.total) * 100) : 0,
+      }))
+      .sort((a, b) => b.pct - a.pct);
+  }, [spaces.data]);
+
   // ── Live operational alerts / activity log ──────────────────────────────
   // Built entirely from real-time data (active parkings + installers + load),
   // most-urgent first. `now` (1-second clock) keeps the "ago" labels fresh.
@@ -314,6 +346,97 @@ export default function ManagerDashboard() {
       }
     }
 
+    // Capacity pressure — the facility cannot accept walk-ins for much longer.
+    const totalSpaces = occupiedNow + reservedNow + freeNow;
+    if (totalSpaces > 0) {
+      const usedPct = ((occupiedNow + reservedNow) / totalSpaces) * 100;
+      if (freeNow === 0) {
+        list.push({
+          id: 'capacity-full',
+          level: 'danger',
+          message: 'Facility is full — no free spaces for walk-ins',
+          at: now,
+        });
+      } else if (usedPct >= 90) {
+        list.push({
+          id: 'capacity-critical',
+          level: 'danger',
+          message: `Capacity critical — only ${freeNow} space${freeNow > 1 ? 's' : ''} left`,
+          at: now,
+        });
+      } else if (usedPct >= 75) {
+        list.push({
+          id: 'capacity-high',
+          level: 'warning',
+          message: `Filling up — ${Math.round(usedPct)}% occupied, ${freeNow} free`,
+          at: now,
+        });
+      }
+    }
+
+    // A floor at capacity while the facility overall still has room: drivers
+    // will circle that floor, so the manager may want to redirect them.
+    for (const f of floorHealth) {
+      if (f.pct >= 95 && f.total > 0 && freeNow > 0) {
+        list.push({
+          id: `floor-full-${f.location}`,
+          level: 'warning',
+          message: `Floor ${f.location} is full — redirect arrivals`,
+          at: now,
+        });
+      }
+    }
+
+    // Every machine busy = new arrivals queue at the gate.
+    const installerList = installers.data ?? [];
+    if (installerList.length > 0 && installerList.every((i) => !i.is_free)) {
+      list.push({
+        id: 'installers-saturated',
+        level: 'danger',
+        message: `All ${installerList.length} installers busy — arrivals will queue`,
+        at: now,
+      });
+    }
+
+    // Subscribers suspended for repeat late returns need staff follow-up.
+    const suspended =
+      subscribers.data?.filter((s) => s.subscriber?.status === 'inactive') ?? [];
+    if (suspended.length > 0) {
+      list.push({
+        id: 'subs-suspended',
+        level: 'warning',
+        message: `${suspended.length} subscription${suspended.length > 1 ? 's' : ''} suspended — awaiting reactivation`,
+        at: now,
+      });
+    }
+
+    // Subscribers one strike away from automatic cancellation (3 delays).
+    const atRisk =
+      subscribers.data?.filter(
+        (s) => s.subscriber?.status === 'active' && (s.subscriber?.delay_count ?? 0) === 2
+      ) ?? [];
+    if (atRisk.length > 0) {
+      list.push({
+        id: 'subs-at-risk',
+        level: 'info',
+        message: `${atRisk.length} subscriber${atRisk.length > 1 ? 's' : ''} one delay from cancellation`,
+        at: now,
+      });
+    }
+
+    // Long-staying vehicles tie up capacity even while still within their time.
+    const longStay = (active.data ?? []).filter(
+      (p) => now - new Date(p.parking_date).getTime() > 8 * 3600_000
+    );
+    if (longStay.length > 0) {
+      list.push({
+        id: 'long-stay',
+        level: 'info',
+        message: `${longStay.length} vehicle${longStay.length > 1 ? 's' : ''} parked over 8 hours`,
+        at: now,
+      });
+    }
+
     if (reservedNow > 0) {
       list.push({
         id: 'reservations-soon',
@@ -327,8 +450,17 @@ export default function ManagerDashboard() {
     const rank = { danger: 0, warning: 1, info: 2 } as const;
     return list
       .sort((a, b) => rank[a.level] - rank[b.level] || b.at - a.at)
-      .slice(0, 6);
-  }, [active.data, installers.data, reservedNow, now]);
+      .slice(0, 8);
+  }, [
+    active.data,
+    installers.data,
+    subscribers.data,
+    floorHealth,
+    occupiedNow,
+    reservedNow,
+    freeNow,
+    now,
+  ]);
 
   const lotSpots = useMemo<ParkingSpot3D[]>(() => {
     const fromApi = spaces.data ?? [];
@@ -856,6 +988,78 @@ export default function ManagerDashboard() {
               </div>
             ))}
           </div>
+        </BentoCard>
+
+        {/* Floor capacity — completes the Operations row */}
+        <BentoCard
+          span="col-span-2 md:col-span-6 lg:col-span-4"
+          tone="surface"
+          delay={0.24}
+          aria-label="Floor capacity"
+        >
+          <SectionHeader
+            title="Floor capacity"
+            description="Utilisation per floor · live"
+            actions={
+              <Badge
+                tone={
+                  floorHealth.some((f) => f.pct >= 90)
+                    ? 'danger'
+                    : floorHealth.some((f) => f.pct >= 75)
+                    ? 'warning'
+                    : 'success'
+                }
+                dot
+                size="md"
+              >
+                {floorHealth.filter((f) => f.pct >= 90).length > 0
+                  ? `${floorHealth.filter((f) => f.pct >= 90).length} full`
+                  : 'Balanced'}
+              </Badge>
+            }
+          />
+          <ul className="space-y-2.5 mt-2">
+            {floorHealth.slice(0, 5).map((f) => {
+              const tone =
+                f.pct >= 90
+                  ? { bar: 'bg-danger-500', text: 'text-danger-600' }
+                  : f.pct >= 75
+                  ? { bar: 'bg-warning-500', text: 'text-warning-600' }
+                  : { bar: 'bg-success-500', text: 'text-success-600' };
+              return (
+                <li key={f.location}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm font-medium text-ink-800 truncate">
+                      {f.location}
+                    </span>
+                    <span className="text-xs text-ink-500 tabular shrink-0 ml-2">
+                      <span className={`font-semibold ${tone.text}`}>{f.pct}%</span>
+                      {' · '}
+                      {f.free} free
+                    </span>
+                  </div>
+                  <div
+                    className="h-2 rounded-full bg-surface-100 overflow-hidden"
+                    role="progressbar"
+                    aria-valuenow={f.pct}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-label={`${f.location} utilisation`}
+                  >
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ${tone.bar}`}
+                      style={{ width: `${f.pct}%` }}
+                    />
+                  </div>
+                </li>
+              );
+            })}
+            {floorHealth.length === 0 && (
+              <li className="text-sm text-ink-500 py-4 text-center">
+                No floors configured.
+              </li>
+            )}
+          </ul>
         </BentoCard>
 
       </BentoGrid>
