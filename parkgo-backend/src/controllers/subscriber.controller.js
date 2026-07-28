@@ -117,7 +117,7 @@ export const listSubscribers = async (_req, res, next) => {
 
 /**
  * GET /api/subscribers/attendants
- * Manager — list all attendant (שומר / סדרן) accounts.
+ * Manager — list all attendant (guard / usher) accounts.
  */
 export const listAttendants = async (_req, res, next) => {
   try {
