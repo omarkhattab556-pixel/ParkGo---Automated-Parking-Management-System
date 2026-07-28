@@ -5,7 +5,10 @@ import {
   pickFreeSpaceForWindow,
 } from '../services/reservation.service.js';
 import { generateConfirmationCode } from '../utils/codeGenerator.js';
-import { sendReservationCodeEmail } from '../services/email.service.js';
+import {
+  sendReservationCodeEmail,
+  sendReservationCancelledEmail,
+} from '../services/email.service.js';
 
 const fetchUserById = async (id) => {
   const { data } = await supabase
@@ -188,6 +191,25 @@ export const cancelReservation = async (req, res, next) => {
       .select('*')
       .single();
     if (updateErr) throw updateErr;
+
+    // Free the space so it can be re-allocated straight away — the no-show
+    // cron does the same when it cancels, and skipping it here would leave the
+    // space flagged as taken until the next job run.
+    await supabase
+      .from('parking_space')
+      .update({ is_occupied: false })
+      .eq('space_number', existing.parking_space);
+
+    // Best-effort email — always addressed to the reservation's owner, not to
+    // whoever performed the cancellation (staff can cancel on their behalf).
+    const user = await fetchUserById(existing.subscriber_num);
+    if (user) {
+      sendReservationCancelledEmail(user, {
+        reason: isOwner
+          ? 'You cancelled this reservation.'
+          : 'The reservation was cancelled by the parking facility staff.',
+      }).catch((e) => console.error('[email] reservation cancelled:', e));
+    }
 
     return res.json(updated);
   } catch (err) {
