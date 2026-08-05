@@ -23,6 +23,13 @@ export interface ParkingSpace {
   space_number: number;
   location: string | null;
   is_occupied: boolean;
+  /**
+   * Spaces are retired (is_active = false), never deleted — historical parking
+   * and reservation rows keep referencing them. List endpoints only ever return
+   * active spaces, so this is `true` for anything the UI receives.
+   */
+  is_active?: boolean;
+  retired_at?: string | null;
 }
 
 export interface Reservation {

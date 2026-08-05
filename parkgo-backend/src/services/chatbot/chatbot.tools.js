@@ -102,7 +102,10 @@ const checkAvailability = async (args, _user) => {
 const getFacilityStatus = async (_args, _user) => {
   const nowIso = new Date().toISOString();
   const [{ count: total }, { count: occupied }, { count: reservedNow }] = await Promise.all([
-    supabase.from('parking_space').select('*', { count: 'exact', head: true }),
+    supabase
+      .from('parking_space')
+      .select('*', { count: 'exact', head: true })
+      .eq('is_active', true),
     supabase.from('parking').select('*', { count: 'exact', head: true }).is('retrieval_time', null),
     supabase
       .from('reservation')

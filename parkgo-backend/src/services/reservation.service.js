@@ -46,7 +46,8 @@ export const getAvailabilityAtWindow = async (startIso) => {
 
   const { count: totalSpaces, error: spaceErr } = await supabase
     .from('parking_space')
-    .select('*', { count: 'exact', head: true });
+    .select('*', { count: 'exact', head: true })
+    .eq('is_active', true);
   if (spaceErr) throw spaceErr;
   if (!totalSpaces || totalSpaces === 0) {
     return {
@@ -114,7 +115,10 @@ export const pickFreeSpaceForWindow = async (startIso) => {
   const { start, end } = computeReservationWindow(startIso);
 
   const [spacesRes, reservationsRes, parkingsRes] = await Promise.all([
-    supabase.from('parking_space').select('space_number, location'),
+    supabase
+      .from('parking_space')
+      .select('space_number, location')
+      .eq('is_active', true),
     supabase
       .from('reservation')
       .select('parking_space')
@@ -170,7 +174,10 @@ export const pickFreeSpaceNow = async () => {
   const nowIso = new Date().toISOString();
 
   const [spacesRes, reservationsRes, parkingsRes] = await Promise.all([
-    supabase.from('parking_space').select('space_number, location'),
+    supabase
+      .from('parking_space')
+      .select('space_number, location')
+      .eq('is_active', true),
     supabase
       .from('reservation')
       .select('parking_space')

@@ -9,7 +9,8 @@ export const getLoad = async (_req, res, next) => {
 
     const { count: totalSpaces } = await supabase
       .from('parking_space')
-      .select('*', { count: 'exact', head: true });
+      .select('*', { count: 'exact', head: true })
+      .eq('is_active', true);
 
     const { count: activeParkings } = await supabase
       .from('parking')
@@ -45,10 +46,12 @@ export const getStatus = async (_req, res, next) => {
     const queue = await getQueueStatus();
     const { count: totalSpaces } = await supabase
       .from('parking_space')
-      .select('*', { count: 'exact', head: true });
+      .select('*', { count: 'exact', head: true })
+      .eq('is_active', true);
     const { count: occupied } = await supabase
       .from('parking_space')
       .select('*', { count: 'exact', head: true })
+      .eq('is_active', true)
       .eq('is_occupied', true);
 
     return res.json({
@@ -70,7 +73,8 @@ export const getHourly = async (req, res, next) => {
 
     const { count: totalSpaces } = await supabase
       .from('parking_space')
-      .select('*', { count: 'exact', head: true });
+      .select('*', { count: 'exact', head: true })
+      .eq('is_active', true);
 
     const now = new Date();
     now.setMinutes(0, 0, 0);
@@ -151,6 +155,7 @@ export const listSpaces = async (req, res, next) => {
     const { data: spaces, error } = await supabase
       .from('parking_space')
       .select('*')
+      .eq('is_active', true)
       .order('location', { ascending: true })
       .order('space_number', { ascending: true });
     if (error) throw error;
@@ -237,7 +242,8 @@ export const listFloors = async (_req, res, next) => {
   try {
     const { data: spaces, error } = await supabase
       .from('parking_space')
-      .select('location, space_number, is_occupied');
+      .select('location, space_number, is_occupied')
+      .eq('is_active', true);
     if (error) throw error;
 
     const buckets = new Map();
@@ -276,6 +282,9 @@ export const addFloor = async (req, res, next) => {
       return res.status(400).json({ error: 'spaces must be 1..200' });
     }
 
+    // Deliberately NOT filtered by is_active: retired rows still hold their
+    // space_number (and their history), so numbering must continue past them
+    // to avoid a new space inheriting a retired one's parking records.
     const { data: max } = await supabase
       .from('parking_space')
       .select('space_number')
@@ -290,6 +299,7 @@ export const addFloor = async (req, res, next) => {
         space_number: next_num + i,
         location: trimmed,
         is_occupied: false,
+        is_active: true,
       });
     }
     const { data: created, error } = await supabase
@@ -310,7 +320,12 @@ export const addFloor = async (req, res, next) => {
 
 /**
  * DELETE /api/facility/floors/:location
- * Removes all spaces tagged with this location only if all are empty.
+ * Retires all spaces tagged with this location only if all are empty.
+ *
+ * Retire, not delete: `parking` and `reservation` keep historical rows that
+ * reference these spaces, so a hard DELETE trips
+ * `parking_parking_space_fkey`. Flipping is_active removes the floor from the
+ * map, the counts and the allocator while the history stays valid.
  */
 export const removeFloor = async (req, res, next) => {
   try {
@@ -322,7 +337,8 @@ export const removeFloor = async (req, res, next) => {
     const { data: spaces, error: spErr } = await supabase
       .from('parking_space')
       .select('space_number, is_occupied')
-      .eq('location', location);
+      .eq('location', location)
+      .eq('is_active', true);
     if (spErr) throw spErr;
     if (!spaces || spaces.length === 0) {
       return res.status(404).json({ error: 'Floor not found or already empty' });
@@ -363,8 +379,14 @@ export const removeFloor = async (req, res, next) => {
 
     const { error: delErr } = await supabase
       .from('parking_space')
-      .delete()
-      .eq('location', location);
+      .update({
+        is_active: false,
+        is_occupied: false,
+        retired_at: new Date().toISOString(),
+        retired_by: req.user?.email || null,
+      })
+      .eq('location', location)
+      .eq('is_active', true);
     if (delErr) throw delErr;
 
     return res.json({
@@ -387,6 +409,8 @@ export const addSpace = async (req, res, next) => {
     let { space_number, location } = req.body;
 
     if (space_number == null) {
+      // Unfiltered on purpose — see addFloor: retired numbers are never reused
+      // implicitly, so the sequence continues past them.
       const { data: max } = await supabase
         .from('parking_space')
         .select('space_number')
@@ -397,13 +421,33 @@ export const addSpace = async (req, res, next) => {
     } else {
       const { data: existing } = await supabase
         .from('parking_space')
-        .select('space_number')
+        .select('space_number, is_active')
         .eq('space_number', space_number)
         .maybeSingle();
-      if (existing) {
+
+      if (existing?.is_active) {
         return res
           .status(409)
           .json({ error: `Space #${space_number} already exists` });
+      }
+
+      // The number belongs to a retired space — bring it back instead of
+      // inserting a duplicate key. Its historical parking rows reattach to it.
+      if (existing) {
+        const { data: revived, error: revErr } = await supabase
+          .from('parking_space')
+          .update({
+            location: location || null,
+            is_occupied: false,
+            is_active: true,
+            retired_at: null,
+            retired_by: null,
+          })
+          .eq('space_number', space_number)
+          .select('*')
+          .single();
+        if (revErr) throw revErr;
+        return res.status(201).json(revived);
       }
     }
 
@@ -413,6 +457,7 @@ export const addSpace = async (req, res, next) => {
         space_number,
         location: location || null,
         is_occupied: false,
+        is_active: true,
       })
       .select('*')
       .single();
@@ -426,7 +471,9 @@ export const addSpace = async (req, res, next) => {
 
 /**
  * DELETE /api/facility/spaces/:num
- * Blocks deletion if there's an active parking or future reservation.
+ * Blocks retirement if there's an active parking or future reservation.
+ *
+ * Retire, not delete — see removeFloor for why a hard DELETE cannot work.
  */
 export const removeSpace = async (req, res, next) => {
   try {
@@ -435,10 +482,12 @@ export const removeSpace = async (req, res, next) => {
 
     const { data: existing } = await supabase
       .from('parking_space')
-      .select('space_number, is_occupied')
+      .select('space_number, is_occupied, is_active')
       .eq('space_number', num)
       .maybeSingle();
-    if (!existing) return res.status(404).json({ error: 'Space not found' });
+    if (!existing || !existing.is_active) {
+      return res.status(404).json({ error: 'Space not found' });
+    }
 
     if (existing.is_occupied) {
       return res
@@ -474,7 +523,12 @@ export const removeSpace = async (req, res, next) => {
 
     const { error: delErr } = await supabase
       .from('parking_space')
-      .delete()
+      .update({
+        is_active: false,
+        is_occupied: false,
+        retired_at: new Date().toISOString(),
+        retired_by: req.user?.email || null,
+      })
       .eq('space_number', num);
     if (delErr) throw delErr;
 

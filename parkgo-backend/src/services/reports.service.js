@@ -75,9 +75,13 @@ export const computeMonthRange = (monthStr) => {
 export const buildOccupancyReport = async (monthStr) => {
   const range = computeMonthRange(monthStr);
 
+  // Capacity = spaces in service. Retired spaces keep their historical parking
+  // rows (that is why they are retired rather than deleted) but must not
+  // inflate the denominator of the occupancy percentage.
   const { count: totalSpaces } = await supabase
     .from('parking_space')
-    .select('*', { count: 'exact', head: true });
+    .select('*', { count: 'exact', head: true })
+    .eq('is_active', true);
   const totalSpacesNum = totalSpaces || 0;
 
   // Fetch all parkings that overlap the month window

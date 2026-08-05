@@ -145,7 +145,9 @@ npm run dev               # starts on http://localhost:5173
 |----------|-------------|
 | `VITE_API_URL` | Backend API base URL (e.g. `http://localhost:5000/api`) |
 | `VITE_APP_NAME` | App display name |
-| `VITE_TOTAL_PARKING_SPACES` | Total spaces shown in the lot |
+
+> Capacity is **not** configured here — floors and spaces are created at runtime
+> by the manager, and every count is derived from the `parking_space` table.
 
 ---
 

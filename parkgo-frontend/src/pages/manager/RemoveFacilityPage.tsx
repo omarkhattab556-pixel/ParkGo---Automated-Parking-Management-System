@@ -312,7 +312,9 @@ export default function RemoveFacilityPage() {
                 Remove {confirm.label}?
               </h2>
               <p className="text-sm text-ink-500 text-center mt-1">
-                This cannot be undone. The facility will be permanently removed.
+                {confirm.kind === 'installer'
+                  ? 'This cannot be undone. The installer will be permanently removed.'
+                  : 'It will be taken out of service and disappear from the map and all capacity counts. Past parking history is kept for reporting.'}
               </p>
               <div className="flex gap-3 mt-6">
                 <Button variant="secondary" fullWidth onClick={() => setConfirm(null)}>
