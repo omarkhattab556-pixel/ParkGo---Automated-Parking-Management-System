@@ -39,19 +39,25 @@ services:
       - key: BREVO_FROM_NAME
         sync: false
 
-  # ---------- Frontend (Vite SPA, static site) ----------
+  # ---------- Frontend (Vite SPA, served by its own Node server) ----------
+  #
+  # Runs as a Node service rather than a `runtime: static` site, on purpose.
+  #
+  # A static site needs a host-level rewrite (/* -> /index.html) or every page
+  # refresh on a deep link like /subscriber returns 404. That rewrite lived only
+  # in the Render dashboard — invisible to this repo — and was never actually
+  # applied, so refreshes broke in production. `public/_redirects` did not help:
+  # that is a Netlify convention, and Render just serves the file verbatim.
+  #
+  # parkgo-frontend/server.js does the fallback in code, so it is version
+  # controlled, testable locally, and survives a service rebuild.
   - type: web
     name: parkgo-frontend
-    runtime: static
+    runtime: node
     rootDir: parkgo-frontend
+    plan: free
     buildCommand: npm install && npm run build
-    staticPublishPath: ./dist
+    startCommand: npm start
     envVars:
       - key: VITE_API_URL
         value: https://parkgo-automated-parking-management.onrender.com/api
-    # This is the fix for the 404-on-refresh / deep-link problem:
-    # serve index.html for every route so React Router can take over.
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html

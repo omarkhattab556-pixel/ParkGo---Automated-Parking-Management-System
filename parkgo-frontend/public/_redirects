@@ -1,4 +1,11 @@
-# SPA fallback: serve index.html for every path so React Router (BrowserRouter)
-# can handle client-side routing. Without this, refreshing or opening a deep
-# link like /login or /subscriber returns 404 on a static host.
+# SPA fallback for Netlify-style static hosts.
+#
+# NOTE: this file does NOTHING on Render — `_redirects` is a Netlify/Cloudflare
+# convention, and Render serves it as an ordinary static file instead of acting
+# on it. Relying on it here is what caused every page refresh on a deep link
+# (/subscriber, /manager/reports, ...) to return a plain-text 404.
+#
+# The real fallback now lives in ../server.js, which serves the built app and
+# returns index.html for any path without a matching file. This file is kept
+# only so a deploy to Netlify/Cloudflare Pages still routes correctly.
 /*    /index.html   200

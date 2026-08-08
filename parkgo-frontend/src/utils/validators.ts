@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 export const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+  password: z.string().min(7, 'Password must be at least 7 characters'), // Minimum length of 7 characters
 });
 export type LoginInput = z.infer<typeof loginSchema>;
 
@@ -16,7 +16,7 @@ export const subscriberRegistrationSchema = z.object({
   license_plate: z
     .string()
     .regex(/^\d{2,3}-\d{2,3}-\d{2,3}$/, 'Format: 12-345-67'),
-  password: z.string().min(8, 'At least 8 characters'),
+  password: z.string().min(7, 'At least 7 characters'),
 });
 export type SubscriberRegistrationInput = z.infer<
   typeof subscriberRegistrationSchema
@@ -29,7 +29,7 @@ export const attendantRegistrationSchema = z.object({
   phone_number: z
     .string()
     .regex(/^0\d{8,9}$/, 'Israeli phone format (e.g., 0501234567)'),
-  password: z.string().min(8, 'At least 8 characters'),
+  password: z.string().min(7, 'At least 7 characters'),
 });
 export type AttendantRegistrationInput = z.infer<
   typeof attendantRegistrationSchema
@@ -59,10 +59,10 @@ export const updateDetailsSchema = z
       .regex(/^0\d{8,9}$/, 'Israeli phone format')
       .optional()
       .or(z.literal('')),
-    current_password: z.string().min(6, 'Current password required'),
+    current_password: z.string().min(7, 'Current password required'),
     new_password: z
       .string()
-      .min(8, 'At least 8 characters')
+      .min(7, 'At least 7 characters')
       .optional()
       .or(z.literal('')),
   });
