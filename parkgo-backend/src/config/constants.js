@@ -35,6 +35,26 @@ export const JWT = {
   EXPIRES_IN: process.env.JWT_EXPIRES_IN || '7d',
 };
 
+// Brute-force protection for POST /api/auth/login. Two tracks: a per-account
+// lockout (stops someone guessing one specific account's password) and a
+// broader per-IP lockout (stops credential stuffing across many accounts).
+// Repeat lockouts on the same account back off exponentially up to MAX_LOCKOUT.
+export const SECURITY = {
+  // Consecutive failures on one email before that account is locked.
+  MAX_LOGIN_ATTEMPTS: num(process.env.MAX_LOGIN_ATTEMPTS, 3),
+  // A failure streak older than this is forgotten (a genuine user who mistyped
+  // once last week starts from a clean slate).
+  ATTEMPT_WINDOW_MS: num(process.env.LOGIN_ATTEMPT_WINDOW_MINUTES, 15) * 60_000,
+  // Base lockout, doubled per repeat lockout, capped at MAX_LOCKOUT_MS.
+  LOCKOUT_MS: num(process.env.LOGIN_LOCKOUT_MINUTES, 15) * 60_000,
+  MAX_LOCKOUT_MS: num(process.env.LOGIN_MAX_LOCKOUT_MINUTES, 120) * 60_000,
+  // Per-IP track — deliberately looser, since one IP may legitimately be a
+  // shared office NAT with several users behind it.
+  MAX_IP_ATTEMPTS: num(process.env.MAX_LOGIN_ATTEMPTS_PER_IP, 15),
+  IP_WINDOW_MS: num(process.env.LOGIN_IP_WINDOW_MINUTES, 15) * 60_000,
+  IP_LOCKOUT_MS: num(process.env.LOGIN_IP_LOCKOUT_MINUTES, 30) * 60_000,
+};
+
 // Google Gemini config for the ParkGo assistant chatbot. The API key lives on
 // the backend only — the frontend never talks to Google directly, it proxies
 // through POST /api/chat. When ENABLED is false the endpoint returns a friendly

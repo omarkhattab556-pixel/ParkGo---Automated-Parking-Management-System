@@ -6,11 +6,25 @@ import { useAuthStore } from '@/store/authStore';
 import { ROLE_LANDING } from '@/utils/constants';
 import type { LoginInput } from '@/utils/validators';
 
+/**
+ * Shape of a rejected login, as normalised by the axios response interceptor.
+ * `code` distinguishes a plain wrong password (which reports how many tries
+ * remain) from a brute-force lockout (which reports how long to wait).
+ */
+export type LoginError = {
+  message?: string;
+  error?: string;
+  status?: number;
+  code?: 'INVALID_CREDENTIALS' | 'ACCOUNT_LOCKED';
+  remaining_attempts?: number;
+  retry_after_seconds?: number;
+};
+
 export const useLogin = () => {
   const navigate = useNavigate();
   const setAuth = useAuthStore((s) => s.setAuth);
 
-  return useMutation({
+  return useMutation<Awaited<ReturnType<typeof authApi.login>>, LoginError, LoginInput>({
     mutationFn: ({ email, password }: LoginInput) =>
       authApi.login(email, password),
     onSuccess: (data) => {
@@ -19,7 +33,10 @@ export const useLogin = () => {
       toast.success(`Welcome back, ${data.user.first_name}!`);
       navigate(landing, { replace: true });
     },
-    onError: (err: { message?: string; error?: string }) => {
+    onError: (err: LoginError) => {
+      // A lockout is rendered inline on the form (with a live countdown), so a
+      // toast would just duplicate it.
+      if (err.code === 'ACCOUNT_LOCKED') return;
       toast.error(err.error || err.message || 'Login failed');
     },
   });

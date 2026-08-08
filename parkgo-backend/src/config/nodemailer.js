@@ -69,6 +69,20 @@ export const sendEmail = async ({ to, subject, html, text }) => {
 
     if (!res.ok) {
       const body = await res.text().catch(() => '');
+
+      // Brevo's most common production failure is IP allow-listing: the key is
+      // valid but the sending host's IP isn't authorised, so *every* email
+      // silently 401s. The raw message buries the fix, so surface it directly —
+      // this bit us once already.
+      if (res.status === 401 && body.includes('unrecognised IP address')) {
+        console.error(
+          '[email] Brevo rejected this server\'s IP address.\n' +
+            '        No email can be sent until it is authorised.\n' +
+            '        Fix: add this IP at https://app.brevo.com/security/authorised_ips\n' +
+            '        (or disable IP restrictions there entirely if the host IP is dynamic).'
+        );
+      }
+
       throw new Error(`Brevo ${res.status} ${res.statusText}: ${body}`);
     }
 

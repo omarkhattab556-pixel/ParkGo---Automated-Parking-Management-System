@@ -23,6 +23,12 @@ dotenv.config();
 
 const app = express();
 
+// Render (and most PaaS hosts) terminate TLS at a reverse proxy, so without
+// this `req.ip` is the proxy's address for every request — which would make the
+// per-IP login lockout blocklist every user at once. Trusting one hop makes
+// `req.ip` the real client address from X-Forwarded-For.
+app.set('trust proxy', 1);
+
 app.use(helmet());
 app.use(
   cors({

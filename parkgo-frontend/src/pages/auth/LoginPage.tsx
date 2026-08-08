@@ -2,8 +2,17 @@ import { useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Navigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Mail, Lock, ArrowRight, ShieldCheck, Sparkles, Zap } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+import {
+  Mail,
+  Lock,
+  ArrowRight,
+  ShieldCheck,
+  Sparkles,
+  Zap,
+  ShieldAlert,
+  AlertTriangle,
+} from 'lucide-react';
 
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -12,12 +21,26 @@ import { ParkGoMark } from '@/components/layout/ParkGoMark';
 import { ParkingLot3D, type ParkingSpot3D } from '@/components/3d/ParkingLot3D';
 import { loginSchema, type LoginInput } from '@/utils/validators';
 import { useLogin } from '@/hooks/useAuth';
+import { useCountdown, formatCountdown } from '@/hooks/useCountdown';
 import { useAuthStore } from '@/store/authStore';
 import { ROLE_LANDING, APP_NAME } from '@/utils/constants';
 
 export function LoginPage() {
   const { isAuthenticated, user } = useAuthStore();
   const login = useLogin();
+
+  // Brute-force feedback. The server is the source of truth for both values —
+  // the countdown below is only a display convenience, so a user who edits it
+  // away still gets a 429 from the API.
+  const loginError = login.error;
+  const isLocked = loginError?.code === 'ACCOUNT_LOCKED';
+  const remainingAttempts =
+    loginError?.code === 'INVALID_CREDENTIALS'
+      ? loginError.remaining_attempts
+      : undefined;
+
+  const lockSeconds = useCountdown(isLocked ? loginError?.retry_after_seconds ?? 0 : 0);
+  const stillLocked = isLocked && lockSeconds > 0;
 
   const {
     register,
@@ -97,6 +120,67 @@ export function LoginPage() {
               </p>
             </div>
 
+            <AnimatePresence mode="wait">
+              {stillLocked ? (
+                <motion.div
+                  key="locked"
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  role="alert"
+                  aria-live="assertive"
+                  className="mb-4 rounded-2xl border border-danger-200 bg-danger-50 p-4"
+                >
+                  <div className="flex gap-3">
+                    <ShieldAlert className="h-5 w-5 shrink-0 text-danger-600 mt-0.5" />
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-danger-700">
+                        Account temporarily locked
+                      </p>
+                      <p className="text-[13px] text-danger-700 mt-1 leading-relaxed">
+                        Too many failed sign-in attempts. For your protection, sign-in is
+                        blocked for{' '}
+                        <span className="font-semibold tabular-nums">
+                          {formatCountdown(lockSeconds)}
+                        </span>
+                        . We&apos;ve emailed the account owner a security alert.
+                      </p>
+                      <p className="text-[13px] text-danger-700 mt-2 leading-relaxed">
+                        If this wasn&apos;t you, strengthen your password once you&apos;re back
+                        in — use 12+ characters with upper and lower case, numbers and
+                        symbols like{' '}
+                        <span className="font-mono font-semibold">@ # $ !</span>.
+                      </p>
+                    </div>
+                  </div>
+                </motion.div>
+              ) : remainingAttempts !== undefined && remainingAttempts > 0 ? (
+                <motion.div
+                  key="remaining"
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  role="alert"
+                  aria-live="polite"
+                  className="mb-4 rounded-2xl border border-warning-100 bg-warning-50 p-4"
+                >
+                  <div className="flex gap-3">
+                    <AlertTriangle className="h-5 w-5 shrink-0 text-warning-600 mt-0.5" />
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-warning-600">
+                        Incorrect email or password
+                      </p>
+                      <p className="text-[13px] text-warning-600 mt-1 leading-relaxed">
+                        {remainingAttempts === 1
+                          ? 'You have 1 attempt left before this account is temporarily locked.'
+                          : `You have ${remainingAttempts} attempts left before this account is temporarily locked.`}
+                      </p>
+                    </div>
+                  </div>
+                </motion.div>
+              ) : null}
+            </AnimatePresence>
+
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-3.5" noValidate>
               <Input
                 type="email"
@@ -105,6 +189,7 @@ export function LoginPage() {
                 autoComplete="email"
                 icon={<Mail className="h-4 w-4" />}
                 error={errors.email?.message}
+                disabled={stillLocked}
                 {...register('email')}
               />
 
@@ -115,6 +200,7 @@ export function LoginPage() {
                 autoComplete="current-password"
                 icon={<Lock className="h-4 w-4" />}
                 error={errors.password?.message}
+                disabled={stillLocked}
                 {...register('password')}
               />
 
@@ -123,10 +209,15 @@ export function LoginPage() {
                 fullWidth
                 size="lg"
                 loading={login.isPending}
+                disabled={stillLocked}
                 className="mt-3"
               >
-                {login.isPending ? 'Signing in…' : 'Sign in'}
-                {!login.isPending && <ArrowRight className="h-4 w-4" />}
+                {login.isPending
+                  ? 'Signing in…'
+                  : stillLocked
+                    ? `Locked — retry in ${formatCountdown(lockSeconds)}`
+                    : 'Sign in'}
+                {!login.isPending && !stillLocked && <ArrowRight className="h-4 w-4" />}
               </Button>
             </form>
 
