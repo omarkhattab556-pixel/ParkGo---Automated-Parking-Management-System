@@ -47,3 +47,8 @@ coverage/
 .nuxt/
 .vercel
 .netlify
+
+# Local-only files
+
+chatbotplan.md
+render.yaml
