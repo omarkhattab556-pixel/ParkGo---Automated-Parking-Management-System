@@ -60,8 +60,8 @@ export function LoginPage() {
   const demoSpots = useMemo<ParkingSpot3D[]>(() => {
     const total = 40;
     return Array.from({ length: total }, (_, i) => {
-      const r = (i * 9301 + 49297) % 233280;
-      const v = (r / 233280) * 10;
+      const r = (i * 9301 + 49297) % 233280; // הכוונה אקראית קבועה לכל מקום חניה, כדי שהמצב לא ישתנה בכל רינדור מחדש
+      const v = (r / 233280) * 10;   // הכוונה אקראית קבועה לכל מקום חניה, כדי שהמצב לא ישתנה בכל רינדור מחדש
       return {
         space_number: i + 1,
         is_occupied: v < 5,

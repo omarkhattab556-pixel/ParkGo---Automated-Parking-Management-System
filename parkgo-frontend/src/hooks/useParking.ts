@@ -8,7 +8,7 @@ export const useMyActiveParking = () =>
   useQuery({
     queryKey: ['parking', 'my-active'],
     queryFn: () => parkingApi.myActive(),
-    refetchInterval: 15_000,
+    refetchInterval: 15_000,                      // מידע מתרעןן כל 15 שניות
   });
 
 export const useMyParkingHistory = () =>

@@ -7,7 +7,7 @@ export const BUSINESS_RULES = {
   MIN_FREE_PERCENT: 40,
   MIN_RESERVATION_HOURS_AHEAD: 24,
   MAX_RESERVATION_DAYS_AHEAD: 7,
-  NO_SHOW_GRACE_MINUTES: 15,
+  NO_SHOW_GRACE_MINUTES: 15,    // זה הזמן שבו המערכת תאפשר למשתמש להיכנס למקום חניה שהזמין, גם אם הגיע מאוחר מדי. אחרי זה, המערכת תסמן את ההזמנה כ"לא הופיע" ותחשב את זה כניסיון כושל.
   MAX_DELAYS_BEFORE_CANCEL: 3,
   INSTALLER_OPERATION_SECONDS: 20,
 } as const;

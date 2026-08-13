@@ -8,14 +8,14 @@ export const api = axios.create({
   timeout: 30_000,
 });
 
-api.interceptors.request.use((config) => {
+api.interceptors.request.use((config) => { // Before each request goes out to the backend, Axios runs this code.
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.AUTH);
     if (raw) {
       const parsed = JSON.parse(raw);
       const token = parsed?.state?.token;
       if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
+        config.headers.Authorization = `Bearer ${token}`;  //וככה ה־Backend יודע מי המשתמש.
       }
     }
   } catch {
@@ -24,7 +24,7 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-api.interceptors.response.use(
+api.interceptors.response.use(             // כל Error שעובר דרך Axios מגיע לנקודה מרכזית אחת.
   (response) => response,
   (error: AxiosError<{ error?: string; message?: string }>) => {
     const status = error.response?.status;
@@ -33,15 +33,15 @@ api.interceptors.response.use(
       error.response?.data?.message ||
       error.message;
 
-    if (status === 401) {
+    if (status === 401) {                        // Token invalid,Token expired, Not authenticated
       const onLogin = window.location.pathname === '/login';
       localStorage.removeItem(STORAGE_KEYS.AUTH);
       if (!onLogin) {
-        toast.error('Session expired. Please log in again.');
+        toast.error('Session expired. Please log in again.'); // הודעת שגיאה למשתמש
         window.location.href = '/login';
       }
     } else if (status === 403) {
-      toast.error('You do not have permission to perform this action.');
+      toast.error('You do not have permission to perform this action.'); // אין הרשאה לבצע את הפעולה הזו
     } else if (status && status >= 500) {
       toast.error('Server error. Please try again shortly.');
     } else if (!status) {

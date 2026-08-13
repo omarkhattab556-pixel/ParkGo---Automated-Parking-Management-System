@@ -43,7 +43,7 @@ export interface Reservation {
   created_at: string;
 }
 
-export interface Parking {
+export interface Parking {   // זה יהיה בתוך  PROMISE של ה-API
   parking_code: number;
   parking_space: number;
   parking_date: string;

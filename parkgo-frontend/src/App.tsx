@@ -12,7 +12,7 @@ import { ROLE_LANDING } from '@/utils/constants';
 import LoginPage from '@/pages/auth/LoginPage';
 import NotFoundPage from '@/pages/NotFoundPage';
 
-/* ---------- Lazy route chunks ---------- */
+/* ---------- Lazy route chunks ---------- */    // משפר ביצועים על ידי טעינת רכיבים לפי דרישה, במקום לטעון את כל הרכיבים בבת אחת
 
 // Subscriber
 const SubscriberLayout = lazy(() => import('@/pages/subscriber/SubscriberLayout'));
@@ -60,7 +60,7 @@ const queryClient = new QueryClient({
     queries: {
       retry: 1,
       refetchOnWindowFocus: false,
-      staleTime: 30_000,
+      staleTime: 30_000,        // מעדכן את הנתונים כ-30 שניות לפני שהם נחשבים "ישנים"
     },
   },
 });
@@ -91,7 +91,7 @@ function App() {
               error: { iconTheme: { primary: '#ef4444', secondary: '#fff' } },
             }}
           />
-          <Suspense fallback={<PageSuspenseFallback />}>
+          <Suspense fallback={<PageSuspenseFallback />}>   // מציג רכיב טעינה בזמן שהרכיבים נטענים בצורה עצלה
             <Routes>
               <Route path="/login" element={<LoginPage />} />
 

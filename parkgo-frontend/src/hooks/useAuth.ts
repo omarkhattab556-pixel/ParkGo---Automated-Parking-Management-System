@@ -70,7 +70,7 @@ export const useCurrentUser = () => {
       return user;
     },
     enabled: !!token && isAuthenticated,
-    staleTime: 5 * 60_000,
+    staleTime: 5 * 60_000,           // זה נתונים נחשבים "ישנים" אחרי 5 דקות, אז הם יטענו מחדש רק אחרי זה
     retry: false,
     refetchOnWindowFocus: false,
     throwOnError: () => {

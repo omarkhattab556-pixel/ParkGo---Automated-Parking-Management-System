@@ -7,14 +7,14 @@ interface AuthState {
   user: User | null;
   token: string | null;
   isAuthenticated: boolean;
-  setAuth: (data: { user: User; token: string }) => void;
+  setAuth: (data: { user: User; token: string }) => void;   // נשמר ב ZUSTAND את המשתמש והטוקן
   updateUser: (user: User) => void;
   clear: () => void;
-  hasRole: (...roles: UserType[]) => boolean;
-}
+  hasRole: (...roles: UserType[]) => boolean;     
+}                                                               //עבור לקוח
 
-export const useAuthStore = create<AuthState>()(
-  persist(
+export const useAuthStore = create<AuthState>()(     
+  persist(                                                      // עבור שרת
     (set, get) => ({
       user: null,
       token: null,

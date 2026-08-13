@@ -8,7 +8,7 @@ export default function SubscriberLayout() {
       <DashboardLayout
         items={subscriberNavItems}
         brandColor="from-brand-500 to-brand-700"
-        roleLabel="Member"
+        roleLabel="Subscriber"
         profileTo="/subscriber/profile"
       />
       <SubscriberBottomBar />

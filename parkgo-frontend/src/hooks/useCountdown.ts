@@ -17,9 +17,9 @@ export const useCountdown = (seconds: number) => {
       return;
     }
 
-    const endsAt = Date.now() + seconds * 1000;
+    const endsAt = Date.now() + seconds * 1000; // מחשב את הזמן שבו הספירה תסתיים
     const tick = () =>
-      setRemaining(Math.max(0, Math.ceil((endsAt - Date.now()) / 1000)));
+      setRemaining(Math.max(0, Math.ceil((endsAt - Date.now()) / 1000))); 
 
     tick();
     const id = setInterval(tick, 1000);
