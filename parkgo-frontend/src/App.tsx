@@ -91,7 +91,7 @@ function App() {
               error: { iconTheme: { primary: '#ef4444', secondary: '#fff' } },
             }}
           />
-          <Suspense fallback={<PageSuspenseFallback />}>   // מציג רכיב טעינה בזמן שהרכיבים נטענים בצורה עצלה
+          <Suspense fallback={<PageSuspenseFallback />}>   
             <Routes>
               <Route path="/login" element={<LoginPage />} />
 
