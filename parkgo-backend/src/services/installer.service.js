@@ -10,7 +10,7 @@ const OPERATION_MS = BUSINESS.INSTALLER_OPERATION_SECONDS * 1000;
  * We use a conditional UPDATE (eq is_free=true) so concurrent calls cannot
  * grab the same row — at most one wins.
  */
-export const acquireInstaller = async () => {
+export const acquireInstaller = async () => {         // לתפוס מתקן פנוי
   const { data: candidates, error: listErr } = await supabase
     .from('installer')
     .select('installer_id, installer_name')

@@ -4,7 +4,7 @@
  * Good enough for a single-instance chatbot endpoint; swap for a shared store
  * (Redis) if the API is ever horizontally scaled.
  */
-export const rateLimit = ({ max = 20, windowMs = 60_000 } = {}) => {
+export const rateLimit = ({ max = 20, windowMs = 60_000 } = {}) => { // לכל משתמש יש לו מגבלה 20 בקשה לצמצום עומס 
   const hits = new Map(); // key -> { count, resetAt }
 
   // Opportunistic cleanup so the map doesn't grow unbounded.
@@ -15,9 +15,9 @@ export const rateLimit = ({ max = 20, windowMs = 60_000 } = {}) => {
 
   return (req, res, next) => {
     const key = String(req.user?.id ?? req.ip);
-    const now = Date.now();
+    const now = Date.now();                              
     const entry = hits.get(key);
-
+                                                        
     if (!entry || entry.resetAt <= now) {
       hits.set(key, { count: 1, resetAt: now + windowMs });
       return next();

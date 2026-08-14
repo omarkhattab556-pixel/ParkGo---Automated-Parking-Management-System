@@ -3,7 +3,7 @@ dotenv.config();
 
 const num = (v, fallback) => {
   const n = Number(v);
-  return Number.isFinite(n) ? n : fallback;
+  return Number.isFinite(n) ? n : fallback;         //כללים 
 };
 
 export const BUSINESS = {

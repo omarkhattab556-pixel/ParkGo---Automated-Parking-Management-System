@@ -5,7 +5,7 @@
 export const validate =
   (schema, source = 'body') =>
   (req, res, next) => {
-    const result = schema.safeParse(req[source]);
+    const result = schema.safeParse(req[source]);  // אם יש קלט לא תקין, מחזיר שגיאה לפני שמגיעה ל הקונטרולר
     if (!result.success) {
       return res.status(400).json({
         error: 'Validation failed',

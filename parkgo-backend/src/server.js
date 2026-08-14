@@ -69,7 +69,7 @@ app.listen(APP.PORT, () => {
   console.log(`  frontend: ${APP.FRONTEND_URL}`);
   console.log(`  health:   http://localhost:${APP.PORT}/health\n`);
 
-  if (APP.NODE_ENV !== 'test') {
+  if (APP.NODE_ENV !== 'test') {   // רצים בלי ג'ובים בסביבת בדיקה
     startFreeInstallersJob();
     startCancelExpiredJob();
     startCheckLateReturnsJob();
