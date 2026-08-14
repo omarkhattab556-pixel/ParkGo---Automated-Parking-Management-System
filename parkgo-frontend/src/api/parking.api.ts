@@ -46,6 +46,16 @@ export interface ActiveParking extends Parking {
   subscriber: Pick<Subscriber, 'subscriber_num' | 'license_plate_number' | 'status'> | null;
 }
 
+export interface ParkingHistoryItem extends Parking {
+  charge: {
+    currency: string;
+    parking_cost: number;
+    late_fine: number;
+    total: number;
+    is_estimate: boolean;
+  };
+}
+
 export interface RecentParkingActivity {
   window_minutes: number;
   from: string;
@@ -82,8 +92,8 @@ export const parkingApi = {
     return data;
   },
 
-  myHistory: async (): Promise<Parking[]> => {
-    const { data } = await api.get<Parking[]>('/parking/my-history');
+  myHistory: async (): Promise<ParkingHistoryItem[]> => {
+    const { data } = await api.get<ParkingHistoryItem[]>('/parking/my-history');
     return data;
   },
 

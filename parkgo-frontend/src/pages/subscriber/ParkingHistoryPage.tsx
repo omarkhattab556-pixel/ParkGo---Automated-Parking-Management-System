@@ -13,6 +13,11 @@ import { PageHeader } from '@/components/ui/PageHeader';
 
 const PAGE_SIZE = 15;
 
+const formatCharge = (currency: string, amount: number): string => {
+  const prefix = currency === 'ILS' ? '₪' : `${currency} `;
+  return `${prefix}${Math.round(amount).toLocaleString()}`;
+};
+
 export default function ParkingHistoryPage() {
   const { data, isLoading } = useMyParkingHistory();
   const [from, setFrom] = useState('');
@@ -87,7 +92,7 @@ export default function ParkingHistoryPage() {
         </div>
       )}
 
-      {isLoading && <TableSkeleton columns={6} rows={6} />}
+      {isLoading && <TableSkeleton columns={7} rows={6} />}
 
       {!isLoading && (!data || data.length === 0) && (
         <EmptyState
@@ -125,6 +130,7 @@ export default function ParkingHistoryPage() {
                     <th className="px-4 py-3 text-left font-semibold">Parked</th>
                     <th className="px-4 py-3 text-left font-semibold">Retrieved</th>
                     <th className="px-4 py-3 text-left font-semibold">Duration</th>
+                    <th className="px-4 py-3 text-left font-semibold">Charge</th>
                     <th className="px-4 py-3 text-left font-semibold">Ext.</th>
                   </tr>
                 </thead>
@@ -155,6 +161,17 @@ export default function ParkingHistoryPage() {
                         </td>
                         <td className="px-4 py-3 text-ink-700 tabular">
                           {formatDuration(minutes)}
+                        </td>
+                        <td className="px-4 py-3 text-ink-900 tabular font-semibold">
+                          <span>
+                            {p.charge.is_estimate ? '~' : ''}
+                            {formatCharge(p.charge.currency, p.charge.total)}
+                          </span>
+                          {p.charge.is_estimate && (
+                            <span className="block text-[10px] uppercase tracking-wide text-ink-400 font-medium mt-0.5">
+                              Estimated
+                            </span>
+                          )}
                         </td>
                         <td className="px-4 py-3 text-ink-700 tabular">
                           {p.extension_count || 0}

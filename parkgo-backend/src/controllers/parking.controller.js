@@ -10,6 +10,7 @@ import {
   sendDropOffCodeEmail,
   sendLostCodeEmail,
 } from '../services/email.service.js';
+import { buildParkingCharge } from '../services/reports.service.js';
 import { getRecentParkingActivity } from '../services/parkingActivity.service.js';
 
 const OPERATION_MS = BUSINESS.INSTALLER_OPERATION_SECONDS * 1000;
@@ -472,7 +473,13 @@ export const myHistory = async (req, res, next) => {
       .eq('subscriber_num', req.user.id)
       .order('parking_date', { ascending: false });
     if (error) throw error;
-    return res.json(data || []);
+
+    const now = new Date();
+    const history = (data || []).map((parking) => ({
+      ...parking,
+      charge: buildParkingCharge(parking, now),
+    }));
+    return res.json(history);
   } catch (err) {
     next(err);
   }

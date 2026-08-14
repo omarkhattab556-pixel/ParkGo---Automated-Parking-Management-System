@@ -33,6 +33,31 @@ export const billParkingSession = (elapsedMinutes, maxTimeMinutes) => {
 };
 
 /**
+ * Produces the per-session charge shown in subscriber parking history.
+ * Completed sessions are final; an active session is explicitly marked as an
+ * estimate because its duration (and therefore its charge) is still growing.
+ */
+export const buildParkingCharge = (parking, now = new Date()) => {
+  const nowMs = now instanceof Date ? now.getTime() : new Date(now).getTime();
+  const startMs = new Date(parking.parking_date).getTime();
+  const endMs = parking.retrieval_time
+    ? new Date(parking.retrieval_time).getTime()
+    : nowMs;
+  const elapsedMinutes = Math.max(0, (endMs - startMs) / 60_000);
+  const bill = billParkingSession(elapsedMinutes, parking.max_time_minutes);
+  const maxMinutes = parking.max_time_minutes || MAX_TIME_MINUTES;
+  const lateFine = elapsedMinutes > maxMinutes ? PRICING.LATE_FINE : 0;
+
+  return {
+    currency: PRICING.CURRENCY,
+    parking_cost: bill.total,
+    late_fine: lateFine,
+    total: bill.total + lateFine,
+    is_estimate: !parking.retrieval_time,
+  };
+};
+
+/**
  * Compute the date range for a given month string "YYYY-MM" (or current month
  * when blank). Returns ISO bounds + the calendar metadata used by the reports.
  */
