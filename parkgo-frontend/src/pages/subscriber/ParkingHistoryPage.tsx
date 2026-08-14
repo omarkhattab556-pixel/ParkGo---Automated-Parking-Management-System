@@ -130,7 +130,7 @@ export default function ParkingHistoryPage() {
                     <th className="px-4 py-3 text-left font-semibold">Parked</th>
                     <th className="px-4 py-3 text-left font-semibold">Retrieved</th>
                     <th className="px-4 py-3 text-left font-semibold">Duration</th>
-                    <th className="px-4 py-3 text-left font-semibold">Charge</th>
+                    <th className="px-4 py-3 text-left font-semibold">Cost</th>
                     <th className="px-4 py-3 text-left font-semibold">Ext.</th>
                   </tr>
                 </thead>
