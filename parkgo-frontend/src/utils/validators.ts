@@ -2,7 +2,9 @@ import { z } from 'zod';
 
 export const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
+  // Sign-in must accept legacy passwords. The 8-character policy applies
+  // when a password is created or changed, not when an existing hash is checked.
+  password: z.string().min(1, 'Password is required'),
 });
 export type LoginInput = z.infer<typeof loginSchema>;
 
@@ -59,7 +61,8 @@ export const updateDetailsSchema = z
       .regex(/^0\d{8,9}$/, 'Israeli phone format')
       .optional()
       .or(z.literal('')),
-    current_password: z.string().min(8, 'Current password required'),
+    // A current password verifies an existing hash and may predate the policy.
+    current_password: z.string().min(1, 'Current password required'),
     new_password: z
       .string()
       .min(8, 'At least 8 characters')
