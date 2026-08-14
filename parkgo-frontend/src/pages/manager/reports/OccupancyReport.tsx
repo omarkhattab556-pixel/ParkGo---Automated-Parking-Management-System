@@ -144,7 +144,7 @@ export function OccupancyReport({ month }: { month: string }) {
                 className="aspect-square rounded-md flex items-end justify-center text-[10px] font-mono font-semibold"
                 style={{
                   backgroundColor: `rgba(59, 130, 246, ${0.1 + intensity * 0.9})`,
-                  color: intensity > 0.5 ? 'white' : '#1e3a8a',
+                  color: intensity > 0.5 ? 'white' : '#000703',
                 }}
                 title={`${String(i).padStart(2, '0')}:00 — ${v.toFixed(0)}%`}
               >
@@ -160,7 +160,7 @@ export function OccupancyReport({ month }: { month: string }) {
               <div
                 key={idx}
                 className="h-4 w-4 rounded"
-                style={{ backgroundColor: `rgba(59, 130, 246, ${alpha})` }}
+                style={{ backgroundColor: `rgba(59, 100, 246, ${alpha})` }}
               />
             ))}
           </div>

@@ -238,10 +238,10 @@ export function FinancialReport({ month }: { month: string }) {
 
   // Expense composition (fixed line items + variable).
   const expenseSlices = [
-    { name: 'Guard salary', value: data.fixed_expenses.guard_salary, color: FIXED_COLOR },
-    { name: 'Manager salary', value: data.fixed_expenses.manager_salary, color: '#7c73f9' },
-    { name: 'Electricity', value: data.fixed_expenses.electricity, color: '#a5a0fb' },
-    { name: 'Facility upkeep', value: data.fixed_expenses.facility_upkeep, color: '#c4c1fc' },
+    { name: 'Guard salary', value: data.fixed_expenses.guard_salary, color: '#ccff00' },
+    { name: 'Manager salary', value: data.fixed_expenses.manager_salary, color: '#fe0000' },
+    { name: 'Electricity', value: data.fixed_expenses.electricity, color: '#0d00ff' },
+    { name: 'Facility upkeep', value: data.fixed_expenses.facility_upkeep, color: '#00f86b' },
     { name: 'Technician calls', value: data.variable_expenses.total, color: VARIABLE_COLOR },
   ].filter((s) => s.value > 0);
 

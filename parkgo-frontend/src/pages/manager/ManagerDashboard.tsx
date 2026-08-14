@@ -559,7 +559,7 @@ export default function ManagerDashboard() {
           {/* Today vs yesterday delta */}
           {occupancyDelta != null && (
             <div className="relative mt-3 flex items-center justify-between rounded-xl bg-white/5 border border-white/10 px-3 py-2">
-              <span className="text-xs text-white/60">Today vs yesterday</span>
+              <span className="text-xs text-white/60">Daily Avg ocuupancy</span>
               <span
                 className={`inline-flex items-center gap-1 text-sm font-bold tabular ${
                   occupancyDelta > 0
