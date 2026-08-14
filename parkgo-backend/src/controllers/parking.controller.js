@@ -10,6 +10,7 @@ import {
   sendDropOffCodeEmail,
   sendLostCodeEmail,
 } from '../services/email.service.js';
+import { getRecentParkingActivity } from '../services/parkingActivity.service.js';
 
 const OPERATION_MS = BUSINESS.INSTALLER_OPERATION_SECONDS * 1000;
 const MAX_TIME_MINUTES = BUSINESS.MAX_PARKING_HOURS * 60;
@@ -472,6 +473,20 @@ export const myHistory = async (req, res, next) => {
       .order('parking_date', { ascending: false });
     if (error) throw error;
     return res.json(data || []);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * GET /api/parking/activity
+ * Returns entry and exit counts for the fixed 30-minute operational window.
+ * For attendant/manager dashboards.
+ */
+export const getRecentActivity = async (_req, res, next) => {
+  try {
+    const activity = await getRecentParkingActivity();
+    return res.json(activity);
   } catch (err) {
     next(err);
   }

@@ -9,6 +9,7 @@ import {
   myHistory,
   myActiveParking,
   listActiveParkings,
+  getRecentActivity,
 } from '../controllers/parking.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import { requireRole } from '../middleware/role.middleware.js';
@@ -65,6 +66,12 @@ router.post(
 
 router.get('/my-history', authenticate, requireRole('subscriber'), myHistory);
 router.get('/my-active', authenticate, requireRole('subscriber'), myActiveParking);
+router.get(
+  '/activity',
+  authenticate,
+  requireRole('attendant', 'manager'),
+  getRecentActivity
+);
 router.get('/active', authenticate, requireRole('attendant', 'manager'), listActiveParkings);
 
 export default router;

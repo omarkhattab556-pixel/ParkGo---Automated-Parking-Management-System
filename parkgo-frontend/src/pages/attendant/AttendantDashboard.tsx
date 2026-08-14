@@ -94,6 +94,12 @@ export default function AttendantDashboard() {
     refetchInterval: 10_000,
   });
 
+  const recentActivity = useQuery({
+    queryKey: ['parking', 'recent-activity'],
+    queryFn: () => parkingApi.recentActivity(),
+    refetchInterval: 10_000,
+  });
+
   const spaces = useQuery({
     queryKey: ['facility', 'spaces'],
     queryFn: () => facilityApi.listSpaces(),
@@ -142,21 +148,13 @@ export default function AttendantDashboard() {
   const installersHealthy = stuckInstallers === 0;
 
   // ── Operations in the last 30 minutes ───────────────────────────────────
-  // Each drop-off (parking_date) and each pick-up (retrieval_time) within the
-  // window counts as one attendant-relevant operation. We keep the split so the
-  // tile can show how many were entries vs exits.
-  const { opsDropOffs, opsPickUps } = useMemo(() => {
-    const cutoff = Date.now() - 30 * 60_000;
-    let drops = 0;
-    let picks = 0;
-    for (const p of active.data ?? []) {
-      if (new Date(p.parking_date).getTime() >= cutoff) drops++;
-      if (p.retrieval_time && new Date(p.retrieval_time).getTime() >= cutoff)
-        picks++;
-    }
-    return { opsDropOffs: drops, opsPickUps: picks };
-  }, [active.data]);
-  const opsLast30 = opsDropOffs + opsPickUps;
+  // This comes from a dedicated history-aware endpoint. The active-parking
+  // list cannot represent exits because it intentionally excludes completed
+  // sessions (rows with a retrieval_time).
+  const opsDropOffs = recentActivity.data?.entries ?? 0;
+  const opsPickUps = recentActivity.data?.exits ?? 0;
+  const opsLast30 = recentActivity.data?.total ?? 0;
+  const activityUnavailable = recentActivity.isError;
 
   // ── Overstays / about to overstay ───────────────────────────────────────
   // Vehicles that have already exceeded their allowed time (overtime) or will
@@ -359,13 +357,16 @@ export default function AttendantDashboard() {
         {/* 2 · Operations in the last 30 minutes — live workload pulse. */}
         <MetricCard
           delay={0.08}
-          loading={active.isLoading}
+          loading={recentActivity.isLoading || activityUnavailable}
           icon={Zap}
-          tone="brand"
+          tone={activityUnavailable ? 'danger' : 'brand'}
           title="Activity · last 30 min"
-          value={active.isLoading ? '—' : opsLast30}
+          value={opsLast30}
           valueSuffix={opsLast30 === 1 ? 'operation' : 'operations'}
-          status={opsLast30 > 0 ? 'Live' : 'Quiet'}
+          status={
+            activityUnavailable ? 'Unavailable' : opsLast30 > 0 ? 'Live' : 'Quiet'
+          }
+          alert={activityUnavailable}
           stats={[
             { label: 'Cars in', value: opsDropOffs },
             { label: 'Cars out', value: opsPickUps },

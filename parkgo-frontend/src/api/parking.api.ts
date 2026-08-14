@@ -46,6 +46,15 @@ export interface ActiveParking extends Parking {
   subscriber: Pick<Subscriber, 'subscriber_num' | 'license_plate_number' | 'status'> | null;
 }
 
+export interface RecentParkingActivity {
+  window_minutes: number;
+  from: string;
+  to: string;
+  entries: number;
+  exits: number;
+  total: number;
+}
+
 export const parkingApi = {
   dropOff: async (confirmation_code?: number): Promise<DropOffResult> => {
     const body = confirmation_code != null ? { confirmation_code } : {};
@@ -85,6 +94,11 @@ export const parkingApi = {
 
   active: async (): Promise<ActiveParking[]> => {
     const { data } = await api.get<ActiveParking[]>('/parking/active');
+    return data;
+  },
+
+  recentActivity: async (): Promise<RecentParkingActivity> => {
+    const { data } = await api.get<RecentParkingActivity>('/parking/activity');
     return data;
   },
 };
