@@ -42,7 +42,7 @@ export const acquireInstaller = async () => {         // לתפוס מתקן פ�
   return null;
 };
 
-export const releaseInstaller = async (installerId) => {
+export const releaseInstaller = async (installerId) => { // זה אומר שהמתקן סיים את העבודה שלו ושוחרר
   const { error } = await supabase
     .from('installer')
     .update({ is_free: true, busy_until: null })
@@ -50,7 +50,7 @@ export const releaseInstaller = async (installerId) => {
   if (error) throw error;
 };
 
-export const getQueueStatus = async () => {
+export const getQueueStatus = async () => {  // זה אומר כמה מתקנים פנויים וכמה עסוקים
   const { data: installers, error } = await supabase
     .from('installer')
     .select('installer_id, installer_name, is_free, busy_until')
@@ -66,7 +66,7 @@ export const getQueueStatus = async () => {
  * Background safety net — release installers whose `busy_until` is in the past.
  * Called from cron job AND opportunistically on each acquire attempt.
  */
-export const releaseExpired = async () => {
+export const releaseExpired = async () => {  // זה אומר אם יש מתקנים שעסוקים יותר מדי זמן, הם משתחררים אוטומטית
   const nowIso = new Date().toISOString();
   const { error } = await supabase
     .from('installer')

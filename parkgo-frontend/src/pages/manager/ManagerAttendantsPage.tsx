@@ -47,7 +47,7 @@ export default function ManagerAttendantsPage() {
             Attendants
           </span>
         }
-        description="All facility attendants (שומרים)"
+        description="All facility attendants"
         actions={
           <Link to="/manager/add-attendant">
             <Button>
