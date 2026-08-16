@@ -339,7 +339,7 @@ export default function ManagerDashboard() {
           list.push({
             id: `stuck-${i.installer_id}`,
             level: 'warning',
-            message: `${i.installer_name} has been busy for ${stuckMin} min`,
+            message: `${i.installer_name}${i.Manufacturer ? ` (${i.Manufacturer})` : ''} has been busy for ${stuckMin} min`,
             at: busyMs,
           });
         }
@@ -930,6 +930,11 @@ export default function ManagerDashboard() {
                   />
                   <span className="text-sm font-medium text-ink-800 truncate">
                     {i.installer_name}
+                    {i.Manufacturer && (
+                      <span className="ml-1 text-xs font-semibold text-brand-600">
+                        · {i.Manufacturer}
+                      </span>
+                    )}
                   </span>
                 </div>
                 <Badge tone={i.is_free ? 'success' : 'warning'} size="sm">
@@ -1225,4 +1230,3 @@ function Legend({
     </div>
   );
 }
-

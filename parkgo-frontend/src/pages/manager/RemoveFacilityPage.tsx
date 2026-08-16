@@ -259,6 +259,11 @@ export default function RemoveFacilityPage() {
                     <div className="min-w-0">
                       <p className="font-display font-bold text-ink-900 truncate">
                         {i.installer_name}
+                        {i.Manufacturer && (
+                          <span className="ml-1 text-xs font-semibold text-brand-600">
+                            · {i.Manufacturer}
+                          </span>
+                        )}
                       </p>
                       <Badge tone={locked ? 'warning' : 'success'} dot size="sm">
                         {locked ? 'Busy — locked' : 'Free'}

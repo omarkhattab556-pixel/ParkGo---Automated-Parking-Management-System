@@ -53,7 +53,7 @@ export const releaseInstaller = async (installerId) => { // זה אומר שהמ
 export const getQueueStatus = async () => {  // זה אומר כמה מתקנים פנויים וכמה עסוקים
   const { data: installers, error } = await supabase
     .from('installer')
-    .select('installer_id, installer_name, is_free, busy_until')
+    .select('installer_id, installer_name, "Manufacturer", is_free, busy_until')
     .order('installer_id');
   if (error) throw error;
 

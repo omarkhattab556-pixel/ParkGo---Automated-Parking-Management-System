@@ -1,7 +1,15 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { PlusSquare, MapPin, Hash, Cog, CheckCircle2, Layers } from 'lucide-react';
+import {
+  PlusSquare,
+  MapPin,
+  Hash,
+  Cog,
+  CheckCircle2,
+  Layers,
+  ChevronDown,
+} from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { Button } from '@/components/ui/Button';
@@ -9,6 +17,7 @@ import { Input } from '@/components/ui/Input';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { facilityApi } from '@/api/facility.api';
 import { cn } from '@/lib/utils';
+import { MANUFACTURERS, type Manufacturer } from '@/types';
 
 type Tab = 'space' | 'floor' | 'installer';
 
@@ -60,6 +69,7 @@ export default function AddFacilityPage() {
 
   /* ---- Installer form state ---- */
   const [installerName, setInstallerName] = useState('');
+  const [manufacturer, setManufacturer] = useState<Manufacturer | ''>('');
 
   const addSpace = useMutation({
     mutationFn: () =>
@@ -101,10 +111,14 @@ export default function AddFacilityPage() {
     mutationFn: () =>
       facilityApi.addInstaller({
         installer_name: installerName || suggestedInstallerName,
+        Manufacturer: manufacturer as Manufacturer,
       }),
     onSuccess: (data) => {
-      toast.success(`${data.installer_name} added`);
+      toast.success(
+        `${data.installer_name} added${data.Manufacturer ? ` (${data.Manufacturer})` : ''}`
+      );
       setInstallerName('');
+      setManufacturer('');
       qc.invalidateQueries({ queryKey: ['facility'] });
     },
     onError: (err: { error?: string; message?: string }) => {
@@ -270,13 +284,44 @@ export default function AddFacilityPage() {
           animate={{ opacity: 1, y: 0 }}
           className="rounded-3xl bg-surface-0 border border-surface-200 p-6 md:p-8 shadow-card space-y-5"
         >
-          <Input
-            label="Installer name"
-            placeholder={`Suggested: ${suggestedInstallerName}`}
-            icon={<Cog className="h-4 w-4" />}
-            value={installerName}
-            onChange={(e) => setInstallerName(e.target.value)}
-          />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Input
+              label="Installer name"
+              placeholder={`Suggested: ${suggestedInstallerName}`}
+              icon={<Cog className="h-4 w-4" />}
+              value={installerName}
+              onChange={(e) => setInstallerName(e.target.value)}
+            />
+            <div className="w-full">
+              <label
+                htmlFor="installer-manufacturer"
+                className="block text-[13px] font-semibold text-ink-700 mb-1.5"
+              >
+                Manufacturer
+              </label>
+              <div className="relative group">
+                <select
+                  id="installer-manufacturer"
+                  value={manufacturer}
+                  onChange={(e) =>
+                    setManufacturer(e.target.value as Manufacturer | '')
+                  }
+                  className="h-12 w-full appearance-none rounded-2xl border border-surface-200 bg-surface-0 px-4 pr-10 text-sm text-ink-900 shadow-soft transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-brand-100 focus:border-brand-500 hover:border-ink-200"
+                  required
+                >
+                  <option value="" disabled>
+                    Select manufacturer
+                  </option>
+                  {MANUFACTURERS.map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" />
+              </div>
+            </div>
+          </div>
           <p className="text-xs text-ink-500">
             Currently the facility has{' '}
             <span className="font-semibold">
@@ -289,6 +334,7 @@ export default function AddFacilityPage() {
             fullWidth
             loading={addInstaller.isPending}
             onClick={() => addInstaller.mutate()}
+            disabled={!manufacturer}
           >
             <CheckCircle2 className="h-5 w-5" />
             Add installer

@@ -12,10 +12,12 @@ import { BUSINESS_RULES } from '@/utils/constants';
 
 function InstallerCard({
   name,
+  manufacturer,
   isFree,
   busyUntil,
 }: {
   name: string;
+  manufacturer: string | null;
   isFree: boolean;
   busyUntil: string | null;
 }) {
@@ -64,7 +66,14 @@ function InstallerCard({
             <Cog className="h-5 w-5 text-white" />
           </motion.div>
           <div>
-            <p className="font-display font-bold text-ink-900">{name}</p>
+            <p className="font-display font-bold text-ink-900">
+              {name}
+              {manufacturer && (
+                <span className="ml-1 text-xs font-semibold text-brand-600">
+                  · {manufacturer}
+                </span>
+              )}
+            </p>
             <p className="text-xs text-ink-500">
               {isFree ? 'Ready' : 'Operating'}
             </p>
@@ -184,6 +193,7 @@ export default function FacilityStatusPage() {
                   <InstallerCard
                     key={i.installer_id}
                     name={i.installer_name}
+                    manufacturer={i.Manufacturer}
                     isFree={i.is_free}
                     busyUntil={i.busy_until}
                   />

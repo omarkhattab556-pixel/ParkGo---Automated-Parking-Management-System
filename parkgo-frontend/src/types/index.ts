@@ -54,9 +54,19 @@ export interface Parking {   // זה יהיה בתוך  PROMISE של ה-API
   max_time_minutes: number;
 }
 
+export const MANUFACTURERS = [
+  'ELECTRA',
+  'PARKOMAT',
+  'PROMOTE',
+  'URBAN PARKING',
+] as const;
+
+export type Manufacturer = (typeof MANUFACTURERS)[number];
+
 export interface Installer {
   installer_id: number;
   installer_name: string;
+  Manufacturer: Manufacturer | null;
   is_free: boolean;
   busy_until: string | null;
 }

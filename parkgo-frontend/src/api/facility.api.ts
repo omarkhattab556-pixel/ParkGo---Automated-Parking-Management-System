@@ -1,5 +1,5 @@
 import api from './axios';
-import type { Installer, ParkingSpace } from '@/types';
+import type { Installer, Manufacturer, ParkingSpace } from '@/types';
 
 export interface SpaceWithStatus extends ParkingSpace {
   in_use: boolean;
@@ -28,6 +28,7 @@ export interface AddFloorPayload {
 
 export interface AddInstallerPayload {
   installer_name: string;
+  Manufacturer: Manufacturer;
 }
 
 export interface FacilityLoad {

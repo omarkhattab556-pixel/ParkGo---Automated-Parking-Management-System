@@ -51,6 +51,7 @@ const addFloorSchema = z.object({
 
 const addInstallerSchema = z.object({
   installer_name: z.string().min(2).max(50),
+  Manufacturer: z.enum(['ELECTRA', 'PARKOMAT', 'PROMOTE', 'URBAN PARKING']),
 });
 
 router.get(

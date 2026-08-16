@@ -555,10 +555,15 @@ export const listInstallers = async (_req, res, next) => {
 
 export const addInstaller = async (req, res, next) => {
   try {
-    const { installer_name } = req.body;
+    const { installer_name, Manufacturer } = req.body;
     const { data: created, error } = await supabase
       .from('installer')
-      .insert({ installer_name, is_free: true, busy_until: null })
+      .insert({
+        installer_name,
+        Manufacturer,
+        is_free: true,
+        busy_until: null,
+      })
       .select('*')
       .single();
     if (error) throw error;
