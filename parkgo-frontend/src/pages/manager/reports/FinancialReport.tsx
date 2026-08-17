@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ResponsiveContainer,
@@ -27,6 +27,7 @@ import {
   Check,
   X,
   Target,
+  CalendarDays,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -52,6 +53,13 @@ function money(currency: string, amount: number): string {
   return `${sign}${symbol}${Math.abs(amount).toLocaleString(undefined, {
     maximumFractionDigits: 0,
   })}`;
+}
+
+function daysInReportMonth(month: string): number {
+  const [year, monthNumber] = month.split('-').map(Number);
+  if (!Number.isInteger(year) || !Number.isInteger(monthNumber)) return 30;
+  if (monthNumber < 1 || monthNumber > 12) return 30;
+  return new Date(year, monthNumber, 0).getDate();
 }
 
 function Stat({
@@ -111,10 +119,6 @@ function ExpenseRow({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(String(value));
   const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    if (!editing) setDraft(String(value));
-  }, [value, editing]);
 
   const commit = async () => {
     const n = Number(draft);
@@ -176,7 +180,10 @@ function ExpenseRow({
         </div>
       ) : (
         <button
-          onClick={() => setEditing(true)}
+          onClick={() => {
+            setDraft(String(value));
+            setEditing(true);
+          }}
           className="group flex items-center gap-2 shrink-0 rounded-xl px-2.5 py-1.5 hover:bg-surface-100 transition-colors"
           title="Click to edit"
         >
@@ -245,29 +252,43 @@ export function FinancialReport({ month }: { month: string }) {
     { name: 'Technician calls', value: data.variable_expenses.total, color: VARIABLE_COLOR },
   ].filter((s) => s.value > 0);
 
-  const breakEvenGap = data.break_even.min_parkings - data.break_even.actual_parkings;
+  const standardHours = data.break_even.standard_hours;
+  const revenueGap = Math.max(data.total_expenses - data.total_income, 0);
+  const targetReached = revenueGap === 0;
+  const remainingStandardParkings =
+    data.break_even.revenue_per_parking > 0
+      ? Math.ceil(revenueGap / data.break_even.revenue_per_parking)
+      : 0;
+  const incomeCoverage =
+    data.total_expenses > 0
+      ? (data.total_income / data.total_expenses) * 100
+      : 100;
+  const progressWidth = Math.min(100, Math.max(0, incomeCoverage));
+  const dailyParkingHoursTarget =
+    (data.break_even.min_parkings * standardHours) /
+    daysInReportMonth(data.month);
 
   return (
     <div className="space-y-6">
       {/* ── PROFIT / LOSS HERO ── */}
       <section
-        className={`relative overflow-hidden rounded-3xl border p-6 shadow-card ${
+        className={`relative overflow-hidden rounded-3xl border p-4 shadow-card ${
           profit
             ? 'bg-success-50 border-success-200'
             : 'bg-danger-50 border-danger-200'
         }`}
       >
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)] lg:items-center gap-4">
+          <div className="flex items-center gap-3 px-1">
             <div
-              className={`h-14 w-14 rounded-2xl flex items-center justify-center text-white shrink-0 ${
+              className={`h-12 w-12 rounded-2xl flex items-center justify-center text-white shrink-0 ${
                 profit ? 'bg-success-500' : 'bg-danger-500'
               }`}
             >
               {profit ? (
-                <TrendingUp className="h-7 w-7" />
+                <TrendingUp className="h-6 w-6" />
               ) : (
-                <TrendingDown className="h-7 w-7" />
+                <TrendingDown className="h-6 w-6" />
               )}
             </div>
             <div>
@@ -279,43 +300,105 @@ export function FinancialReport({ month }: { month: string }) {
                 {profit ? 'Net profit' : 'Net loss'}
               </p>
               <p
-                className={`font-display text-4xl font-bold tabular leading-none mt-1 ${
+                className={`font-display text-3xl font-bold tabular leading-none mt-1 ${
                   profit ? 'text-success-700' : 'text-danger-700'
                 }`}
               >
                 {money(cur, data.net_profit)}
               </p>
-              <p className="text-sm text-ink-600 mt-1.5">
-                {money(cur, data.total_income)} income −{' '}
-                {money(cur, data.total_expenses)} expenses
-              </p>
             </div>
           </div>
 
           {/* Break-even callout */}
-          <div className="rounded-2xl bg-surface-0/80 border border-surface-200 p-4 backdrop-blur-sm sm:max-w-xs">
-            <div className="flex items-center gap-2 mb-1">
-              <Target className="h-4 w-4 text-ink-500" />
-              <p className="text-[11px] uppercase tracking-[0.08em] text-ink-500 font-semibold">
-                Break-even point
+          <div className="rounded-2xl bg-surface-0/90 border border-surface-200 p-4 backdrop-blur-sm shadow-soft">
+            <div className="grid grid-cols-2 sm:grid-cols-[minmax(150px,0.8fr)_minmax(180px,1.1fr)_auto_auto] items-center gap-x-5 gap-y-3">
+              <div className="col-span-2 sm:col-span-1 flex items-center gap-2.5">
+                <span
+                  className={`h-8 w-8 rounded-xl flex items-center justify-center shrink-0 ${
+                    targetReached
+                      ? 'bg-success-50 text-success-700'
+                      : 'bg-danger-50 text-danger-700'
+                  }`}
+                >
+                  <Target className="h-4 w-4" />
+                </span>
+                <div>
+                  <p className="text-[10px] uppercase tracking-[0.08em] text-ink-500 font-bold">
+                    Break-even target
+                  </p>
+                  <p className="text-xs text-ink-500 mt-0.5">
+                    Full {standardHours}-hour parkings
+                  </p>
+                </div>
+              </div>
+
+              <div className="col-span-2 sm:col-span-1">
+                {targetReached ? (
+                  <p className="font-display text-xl font-bold text-success-700">
+                    Target reached
+                  </p>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <p className="font-display text-3xl font-bold tabular leading-none text-danger-700">
+                      {remainingStandardParkings.toLocaleString()}
+                    </p>
+                    <p className="text-xs font-semibold text-ink-700 leading-4">
+                      more parkings
+                      <br />
+                      to break even
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <p className="text-[10px] uppercase tracking-wide text-ink-500 font-semibold whitespace-nowrap">
+                  Monthly target
+                </p>
+                <p className="text-sm font-bold text-ink-900 tabular mt-0.5 whitespace-nowrap">
+                  {data.break_even.min_parkings.toLocaleString()} parkings
+                </p>
+              </div>
+
+              <div className="border-l border-surface-200 pl-4">
+                <div className="flex items-center gap-1.5">
+                  <CalendarDays className="h-3.5 w-3.5 text-ink-400" />
+                  <p className="text-[10px] uppercase tracking-wide text-ink-500 font-semibold whitespace-nowrap">
+                    Daily parking target
+                  </p>
+                </div>
+                <p className="text-sm font-bold text-ink-900 tabular mt-0.5 whitespace-nowrap">
+                  {dailyParkingHoursTarget.toLocaleString(undefined, {
+                    maximumFractionDigits: 1,
+                  })}{' '}
+                  hours
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 mt-3 pt-3 border-t border-surface-200">
+              <p className="text-[11px] font-semibold text-ink-600 whitespace-nowrap">
+                Costs covered
+              </p>
+              <div
+                className="h-2 rounded-full bg-surface-200 overflow-hidden flex-1"
+                role="progressbar"
+                aria-label="Income coverage of monthly expenses"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Math.round(progressWidth)}
+              >
+                <div
+                  className={`h-full rounded-full transition-[width] duration-500 ${
+                    targetReached ? 'bg-success-500' : 'bg-danger-500'
+                  }`}
+                  style={{ width: `${progressWidth}%` }}
+                />
+              </div>
+              <p className="text-xs font-bold tabular whitespace-nowrap text-ink-900">
+                {Math.round(incomeCoverage).toLocaleString()}%
               </p>
             </div>
-            <p className="font-display text-2xl font-bold tabular text-ink-900">
-              {data.break_even.min_parkings.toLocaleString()} parkings
-            </p>
-            <p className="text-xs text-ink-500 mt-1">
-              Minimum monthly parkings to cover all expenses (at{' '}
-              {money(cur, data.break_even.revenue_per_parking)} each).{' '}
-              {breakEvenGap <= 0 ? (
-                <span className="text-success-700 font-semibold">
-                  Reached — keeping the facility open pays off.
-                </span>
-              ) : (
-                <span className="text-danger-700 font-semibold">
-                  {breakEvenGap.toLocaleString()} more needed this month.
-                </span>
-              )}
-            </p>
           </div>
         </div>
       </section>
