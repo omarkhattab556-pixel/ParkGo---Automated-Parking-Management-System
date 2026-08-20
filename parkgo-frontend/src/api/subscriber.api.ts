@@ -1,3 +1,10 @@
+/**
+ * Subscriber-domain transport contracts shared across roles.
+ *
+ * The module combines subscriber self-service with attendant registration and
+ * manager/staff lookup or status operations; backend role checks remain the
+ * authority for every endpoint.
+ */
 import api from './axios';
 import type { Parking, Reservation, Subscriber, User } from '@/types';
 
@@ -54,6 +61,7 @@ export const subscriberApi = {
     return data;
   },
 
+  /** Update self-service details after the backend verifies current_password. */
   updateMyDetails: async (
     id: number,
     payload: UpdateDetailsPayload
@@ -89,6 +97,7 @@ export const subscriberApi = {
     return data;
   },
 
+  /** Deactivate a subscriber and report how many active reservations were cancelled. */
   deactivate: async (
     id: number
   ): Promise<{

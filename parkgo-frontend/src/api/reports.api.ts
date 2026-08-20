@@ -1,3 +1,10 @@
+/**
+ * Typed reporting and billing transport layer.
+ *
+ * Optional month filters use `YYYY-MM`; omitting one delegates the current
+ * reporting month to the server. CSV export uses fetch separately because it
+ * needs browser blob/download handling rather than the normal JSON pipeline.
+ */
 import api from './axios';
 import { API_URL, STORAGE_KEYS } from '@/utils/constants';
 
@@ -132,6 +139,7 @@ export type ReportType =
   | 'revenue'
   | 'financial';
 
+/** Report readers share the same optional month contract across report types. */
 export const reportsApi = {
   occupancy: async (month?: string): Promise<OccupancyReport> => {
     const { data } = await api.get<OccupancyReport>('/reports/occupancy', {

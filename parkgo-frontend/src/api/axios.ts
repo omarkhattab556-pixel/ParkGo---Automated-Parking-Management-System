@@ -1,3 +1,10 @@
+/**
+ * Shared HTTP boundary for the frontend.
+ *
+ * Requests receive the persisted bearer token, while responses centralise
+ * session expiry and transport-level notifications. Rejections are normalised
+ * to a small API error object so hooks do not depend on Axios internals.
+ */
 import axios, { AxiosError } from 'axios';
 import { API_URL, STORAGE_KEYS } from '@/utils/constants';
 import toast from 'react-hot-toast';
@@ -8,6 +15,9 @@ export const api = axios.create({
   timeout: 30_000,
 });
 
+// Zustand persist stores auth data inside a `{ state: ... }` envelope. Keep
+// this reader aligned with authStore's persisted slice; malformed storage is
+// treated as an unauthenticated request.
 api.interceptors.request.use((config) => { // Before each request goes out to the backend, Axios runs this code.
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.AUTH);
@@ -24,6 +34,8 @@ api.interceptors.request.use((config) => { // Before each request goes out to th
   return config;
 });
 
+// Global handlers cover errors shared by every feature. The rejected value
+// below deliberately exposes the backend payload plus status/message only.
 api.interceptors.response.use(             // כל Error שעובר דרך Axios מגיע לנקודה מרכזית אחת.
   (response) => response,
   (error: AxiosError<{ error?: string; message?: string }>) => {
@@ -37,6 +49,7 @@ api.interceptors.response.use(             // כל Error שעובר דרך Axios
       const onLogin = window.location.pathname === '/login';
       localStorage.removeItem(STORAGE_KEYS.AUTH);
       if (!onLogin) {
+        // A hard redirect discards router and query state tied to the expired session.
         toast.error('Session expired. Please log in again.'); // הודעת שגיאה למשתמש
         window.location.href = '/login';
       }

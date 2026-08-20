@@ -1,3 +1,12 @@
+/**
+ * ParkGo API process entry point.
+ *
+ * Request handling is ordered deliberately: security and CORS headers, body
+ * parsing and request logging run before the public health check and API
+ * routers; the 404 and error handlers terminate the chain after every route.
+ * Background jobs are process-local and are registered only after the HTTP
+ * listener starts.
+ */
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -63,6 +72,11 @@ app.use('/api/chat', chatbotRoutes);
 app.use(notFound);
 app.use(errorHandler);
 
+/**
+ * Starts the API listener and the recurring operational jobs. Jobs are skipped
+ * in tests so importing/running the server does not create background timers or
+ * mutate database state while the test suite is executing.
+ */
 app.listen(APP.PORT, () => {
   console.log(`\nParkGo API listening on http://localhost:${APP.PORT}`);
   console.log(`  env:      ${APP.NODE_ENV}`);

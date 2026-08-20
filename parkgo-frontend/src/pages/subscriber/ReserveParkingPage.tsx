@@ -29,6 +29,7 @@ const MIN_OFFSET_HOURS = BUSINESS_RULES.MIN_RESERVATION_HOURS_AHEAD;
 const MAX_OFFSET_DAYS = BUSINESS_RULES.MAX_RESERVATION_DAYS_AHEAD;
 const MIN_FREE_PCT = BUSINESS_RULES.MIN_FREE_PERCENT;
 
+/** Fifteen-minute wall-clock choices presented by the reservation form. */
 const timeOptions: string[] = (() => {
   const out: string[] = [];
   for (let h = 0; h < 24; h++) {
@@ -39,11 +40,19 @@ const timeOptions: string[] = (() => {
   return out;
 })();
 
+/**
+ * Two-step subscriber reservation workflow.
+ *
+ * The form converts an Israel wall-clock selection to UTC, previews capacity
+ * after a short debounce, then asks the create endpoint to validate again and
+ * assign the final space and confirmation code.
+ */
 export default function ReserveParkingPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const load = useFacilityLoad(15_000);
 
+  // Capture one stable eligibility window for the lifetime of this form mount.
   const now = useMemo(() => new Date(), []);
   const minDate = useMemo(() => addHours(now, MIN_OFFSET_HOURS), [now]);
   const maxDate = useMemo(() => addDays(now, MAX_OFFSET_DAYS), [now]);
@@ -95,6 +104,8 @@ export default function ReserveParkingPage() {
     },
   });
 
+  // Availability is advisory UI feedback; creation performs the final server
+  // check, so changes between this preview and submit cannot bypass the rule.
   useEffect(() => {
     if (!combinedIso || validationError) {
       setAvailability(null);

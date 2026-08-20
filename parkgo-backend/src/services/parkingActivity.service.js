@@ -2,6 +2,14 @@ import supabase from '../config/supabase.js';
 
 export const ACTIVITY_WINDOW_MINUTES = 30;
 
+/**
+ * Build the inclusive server-side interval used for recent activity counts.
+ *
+ * @param {Date|string|number} [now=new Date()] Window end; must parse as a date.
+ * @param {number} [windowMinutes=ACTIVITY_WINDOW_MINUTES] Positive window size.
+ * @returns {{ windowMinutes: number, from: string, to: string }} ISO boundaries.
+ * @throws {TypeError} When the end date or window size is invalid.
+ */
 export const buildActivityWindow = (
   now = new Date(),
   windowMinutes = ACTIVITY_WINDOW_MINUTES

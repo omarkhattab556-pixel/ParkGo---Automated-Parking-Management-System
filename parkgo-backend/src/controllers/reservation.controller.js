@@ -28,9 +28,9 @@ export const createReservation = async (req, res, next) => {
     const subscriberNum = req.user.id;
     const { reservation_start } = req.body;
 
-    const window = isValidReservationTime(reservation_start);
+    const window = isValidReservationTime(reservation_start); 
     if (!window.ok) {
-      return res.status(400).json({ error: window.reason });
+      return res.status(400).json({ error: window.reason }); 
     }
 
     const { data: sub } = await supabase

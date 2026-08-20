@@ -1,9 +1,16 @@
+/**
+ * React Query boundary for parking, reservation, and live facility state.
+ *
+ * Query-key prefixes are domain boundaries: mutations invalidate a prefix so
+ * every dashboard or workflow backed by that domain refreshes together.
+ */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { parkingApi } from '@/api/parking.api';
 import { facilityApi } from '@/api/facility.api';
 import { reservationApi } from '@/api/reservation.api';
 
+/** Poll the signed-in subscriber's active session for time-sensitive UI. */
 export const useMyActiveParking = () =>
   useQuery({
     queryKey: ['parking', 'my-active'],
@@ -17,6 +24,10 @@ export const useMyParkingHistory = () =>
     queryFn: () => parkingApi.myHistory(),
   });
 
+/**
+ * Poll the facility load at a caller-selected interval; dashboards can choose
+ * their required freshness without duplicating the query contract.
+ */
 export const useFacilityLoad = (refetchMs = 10_000) =>
   useQuery({
     queryKey: ['facility', 'load'],
@@ -31,6 +42,8 @@ export const useMyReservations = () =>
     queryFn: () => reservationApi.my(),
   });
 
+// Reservation changes also affect capacity, while parking lifecycle changes
+// affect both the active/history views and the facility's live availability.
 export const useCancelReservation = () => {
   const qc = useQueryClient();
   return useMutation({
@@ -81,6 +94,7 @@ export const useExtendParking = () => {
     mutationFn: ({ parkingCode, minutes }: { parkingCode: number; minutes: number }) =>
       parkingApi.extend(parkingCode, minutes),
     onSuccess: (data) => {
+      // The server may shorten an extension to protect the next reservation.
       if (data.capped_by_reservation) {
         toast.success(
           `Shortened to ${data.minutes_added} min — another reservation starts soon on this space.`,

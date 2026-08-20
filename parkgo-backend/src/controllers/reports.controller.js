@@ -26,6 +26,11 @@ const toCsv = (headers, rows) => {
   return out.join('\n');
 };
 
+/**
+ * GET /api/reports/occupancy?month=YYYY-MM  (manager)
+ * Monthly capacity utilization, including daily averages and a 24-hour
+ * occupancy heatmap. An omitted month selects the current calendar month.
+ */
 export const occupancyReport = async (req, res, next) => {
   try {
     const data = await buildOccupancyReport(req.query.month);
@@ -35,6 +40,11 @@ export const occupancyReport = async (req, res, next) => {
   }
 };
 
+/**
+ * GET /api/reports/behavior?month=YYYY-MM  (manager)
+ * Monthly parking-duration distribution, average duration, extension rate and
+ * late-return rate. An omitted month selects the current calendar month.
+ */
 export const behaviorReport = async (req, res, next) => {
   try {
     const data = await buildBehaviorReport(req.query.month);
@@ -44,6 +54,11 @@ export const behaviorReport = async (req, res, next) => {
   }
 };
 
+/**
+ * GET /api/reports/reservations?month=YYYY-MM  (manager)
+ * Monthly reservation totals, outcomes, occupancy share and daily timeline.
+ * An omitted month selects the current calendar month.
+ */
 export const reservationsReport = async (req, res, next) => {
   try {
     const data = await buildReservationsReport(req.query.month);
@@ -109,6 +124,9 @@ export const getExpenses = async (_req, res, next) => {
 /**
  * PATCH /api/reports/expenses  (manager)
  * Update one or more of the editable expense amounts.
+ * Accepted fields: guard_salary, manager_salary, electricity,
+ * facility_upkeep and technician_fee. Values are normalized to non-negative
+ * numbers by the report service.
  */
 export const patchExpenses = async (req, res, next) => {
   try {
@@ -122,6 +140,7 @@ export const patchExpenses = async (req, res, next) => {
 /**
  * GET /api/reports/export/:type?month=YYYY-MM
  *  type ∈ { occupancy | behavior | reservations | revenue }
+ *  `financial` is also supported for monthly P&L and break-even data.
  * Returns text/csv.
  */
 export const exportReport = async (req, res, next) => {

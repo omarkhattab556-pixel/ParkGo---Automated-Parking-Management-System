@@ -12,6 +12,16 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
   );
 }
 
+/**
+ * Shared server-only Supabase client.
+ *
+ * `SUPABASE_SERVICE_KEY` is privileged and may bypass Row Level Security, so it
+ * must never be shipped to the browser; authorization remains the API layer's
+ * responsibility. Token refresh and session persistence are disabled because
+ * this process performs backend database operations rather than user sessions.
+ * Placeholder credentials let the process boot without configuration, but all
+ * real database calls will fail until both environment variables are supplied.
+ */
 export const supabase = createClient(
   SUPABASE_URL || 'http://placeholder.invalid',
   SUPABASE_SERVICE_KEY || 'placeholder',

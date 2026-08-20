@@ -663,7 +663,7 @@ export const buildFinancialReport = async (monthStr) => {
   const totalExpenses = fixedExpenses + variableExpenses;
 
   const totalIncome = revenue.total_revenue;
-  const netProfit = totalIncome - totalExpenses;
+  const netProfit = totalIncome - totalExpenses; // נקודת איזון: כמה הכנסות צריך כדי לכסות את ההוצאות
 
   // Break-even: the minimum number of "standard" parkings the facility must
   // sell to cover ALL expenses. A standard parking earns HOURLY_RATE per hour

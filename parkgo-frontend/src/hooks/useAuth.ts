@@ -1,3 +1,8 @@
+/**
+ * Authentication workflows layered over the transport API and persisted store.
+ * Server state remains canonical; successful mutations synchronise the local
+ * session and navigation as one workflow.
+ */
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -20,6 +25,10 @@ export type LoginError = {
   retry_after_seconds?: number;
 };
 
+/**
+ * Authenticate, persist the returned session, and route the user to the
+ * landing page assigned to their server-provided role.
+ */
 export const useLogin = () => {
   const navigate = useNavigate();
   const setAuth = useAuthStore((s) => s.setAuth);
@@ -42,12 +51,17 @@ export const useLogin = () => {
   });
 };
 
+/**
+ * End the local session even when the best-effort server logout request fails,
+ * preventing an unreachable backend from trapping the user in a stale login.
+ */
 export const useLogout = () => {
   const navigate = useNavigate();
   const clear = useAuthStore((s) => s.clear);
 
   return useMutation({
     mutationFn: () => authApi.logout(),
+    // Local logout is an invariant, not conditional on the network response.
     onSettled: () => {
       clear();
       navigate('/login', { replace: true });

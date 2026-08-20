@@ -21,8 +21,15 @@ import { InstallerAnimation } from '@/components/common/InstallerAnimation';
 import { useDropOff } from '@/hooks/useParking';
 import type { DropOffResult } from '@/api/parking.api';
 
+/** Determines whether drop-off sends a reservation code or starts a walk-in. */
 type Mode = 'choose' | 'with-reservation' | 'walk-in';
 
+/**
+ * Subscriber drop-off workflow.
+ *
+ * `mode` selects the request shape, while `phase` advances the UI from input to
+ * the installer simulation and finally the server-confirmed parking summary.
+ */
 export default function DropOffCarPage() {
   const navigate = useNavigate();
   const [mode, setMode] = useState<Mode>('choose');
@@ -32,6 +39,8 @@ export default function DropOffCarPage() {
 
   const dropOff = useDropOff();
 
+  // The installer animation begins only after the backend has assigned the
+  // space, installer, confirmation code, and authoritative operation duration.
   const submit = (code?: number) => {
     if (mode === 'with-reservation' && (!code || isNaN(code))) {
       toast.error('Enter your 6-digit confirmation code');

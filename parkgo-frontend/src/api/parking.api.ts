@@ -1,3 +1,10 @@
+/**
+ * Transport contracts for the parking-session lifecycle.
+ *
+ * Drop-off creates an active session, pickup completes it, and extension
+ * adjusts its allowed duration. Confirmation codes identify the reservation
+ * at drop-off or the active session at pickup.
+ */
 import api from './axios';
 import type { Parking, Subscriber, User } from '@/types';
 
@@ -66,6 +73,7 @@ export interface RecentParkingActivity {
 }
 
 export const parkingApi = {
+  /** Start a reserved drop-off with a code, or omit it for a walk-in session. */
   dropOff: async (confirmation_code?: number): Promise<DropOffResult> => {
     const body = confirmation_code != null ? { confirmation_code } : {};
     const { data } = await api.post<DropOffResult>('/parking/drop-off', body);
@@ -79,6 +87,10 @@ export const parkingApi = {
     return data;
   },
 
+  /**
+   * Request extra time; the response reports the duration actually granted,
+   * which may be capped to keep the space available for its next reservation.
+   */
   extend: async (parkingCode: number, extra_minutes = 60): Promise<ExtendResult> => {
     const { data } = await api.post<ExtendResult>(
       `/parking/extend/${parkingCode}`,

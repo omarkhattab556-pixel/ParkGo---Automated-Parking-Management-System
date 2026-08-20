@@ -6,6 +6,12 @@ const num = (v, fallback) => {
   return Number.isFinite(n) ? n : fallback;         //כללים 
 };
 
+/**
+ * Configurable domain-policy values with safe numeric fallbacks.
+ * Names ending in HOURS use hours, MINUTES use minutes, PERCENT uses a 0..100
+ * percentage, and INSTALLER_OPERATION_SECONDS uses seconds. Services convert
+ * these values to milliseconds only at their execution boundaries.
+ */
 export const BUSINESS = {
   MAX_PARKING_HOURS: num(process.env.MAX_PARKING_HOURS, 4),
   MAX_EXTENSION_HOURS: num(process.env.MAX_EXTENSION_HOURS, 4),
@@ -30,6 +36,10 @@ export const PRICING = {
   SUBSCRIPTION_FEE: num(process.env.SUBSCRIPTION_FEE, 150),
 };
 
+/**
+ * JWT signing settings. The built-in secret keeps local development bootable
+ * only; production deployments must provide a strong, private `JWT_SECRET`.
+ */
 export const JWT = {
   SECRET: process.env.JWT_SECRET || 'dev-secret-change-me',
   EXPIRES_IN: process.env.JWT_EXPIRES_IN || '7d',

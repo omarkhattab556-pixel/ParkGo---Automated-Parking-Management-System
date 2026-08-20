@@ -1,3 +1,10 @@
+/**
+ * Reservation transport contracts.
+ *
+ * Start times cross this boundary as UTC ISO instants. Availability is a
+ * preview for the form; creation revalidates timing and capacity on the server
+ * before assigning a space and confirmation code.
+ */
 import api from './axios';
 import type { Reservation } from '@/types';
 
@@ -27,6 +34,7 @@ export const reservationApi = {
     return data;
   },
 
+  /** Preview whether the requested window satisfies the server's capacity rule. */
   checkAvailability: async (reservation_start: string): Promise<AvailabilityResult> => {
     const { data } = await api.post<AvailabilityResult>(
       '/reservations/check-availability',

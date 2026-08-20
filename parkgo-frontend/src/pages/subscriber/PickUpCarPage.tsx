@@ -47,6 +47,11 @@ function extensionCost(minutes: number, hourlyRate: number): number {
   return Math.round((minutes / 60) * hourlyRate);
 }
 
+/**
+ * Subscriber pickup workflow with active-session status, optional extension,
+ * lost-code recovery, installer animation, and the final retrieval summary.
+ * The server response remains authoritative for granted time and pickup data.
+ */
 export default function PickUpCarPage() {
   const navigate = useNavigate();
   const [codeInput, setCodeInput] = useState('');
@@ -67,6 +72,8 @@ export default function PickUpCarPage() {
   const hourlyRate = billing.data?.rates.hourly_rate ?? 0;
   const currency = billing.data?.currency ?? 'ILS';
 
+  // max_time_minutes already includes approved extensions. Subtracting the
+  // base allowance yields how much of the separate extension budget was used.
   const active = activeParking.data;
   const elapsedMinutes = active
     ? Math.floor((Date.now() - new Date(active.parking_date).getTime()) / 60000)

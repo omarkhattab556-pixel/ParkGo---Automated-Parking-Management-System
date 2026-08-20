@@ -1,6 +1,14 @@
+/**
+ * Facility read models and manager inventory commands.
+ *
+ * Load, status, hourly, and space endpoints power live operational views.
+ * Removing a space or floor retires active inventory instead of deleting rows,
+ * preserving historical parking and reservation references.
+ */
 import api from './axios';
 import type { Installer, Manufacturer, ParkingSpace } from '@/types';
 
+/** Role-aware live space state; occupant fields are present only for staff. */
 export interface SpaceWithStatus extends ParkingSpace {
   in_use: boolean;
   reserved: boolean;
@@ -91,6 +99,8 @@ export const facilityApi = {
   },
 
   /* Manager CRUD */
+  // Space and floor lists expose active inventory; their remove commands use
+  // the backend's retirement lifecycle rather than destructive deletion.
   listSpaces: async (): Promise<SpaceWithStatus[]> => {
     const { data } = await api.get<SpaceWithStatus[]>('/facility/spaces');
     return data;

@@ -3,6 +3,13 @@ import { getQueueStatus } from '../services/installer.service.js';
 
 /* ---------- Load / Status ---------- */
 
+/**
+ * GET /api/facility/load
+ * Computes live capacity for any authenticated role from active spaces, open
+ * parking sessions and reservations overlapping the current instant. `free`
+ * excludes both parked and currently reserved spaces, while
+ * `occupancy_percent` measures open parking sessions against active capacity.
+ */
 export const getLoad = async (_req, res, next) => {
   try {
     const nowIso = new Date().toISOString();
@@ -41,6 +48,12 @@ export const getLoad = async (_req, res, next) => {
   }
 };
 
+/**
+ * GET /api/facility/status
+ * Returns the robotic installer queue together with the space inventory's
+ * cached `is_occupied` flags. This is an operational equipment snapshot; unlike
+ * `/load`, it does not project reservation overlap at the current instant.
+ */
 export const getStatus = async (_req, res, next) => {
   try {
     const queue = await getQueueStatus();
@@ -67,6 +80,12 @@ export const getStatus = async (_req, res, next) => {
   }
 };
 
+/**
+ * GET /api/facility/hourly?hours=N
+ * Staff-only occupancy series sampled at the start of each hour. `hours`
+ * defaults to 24 and is clamped to 1..72; returned hour labels are ISO strings.
+ * A session contributes to every sampled hour that falls inside its lifetime.
+ */
 export const getHourly = async (req, res, next) => {
   try {
     const hours = Math.min(72, Math.max(1, Number(req.query.hours || 24)));
@@ -120,6 +139,12 @@ export const getHourly = async (req, res, next) => {
   }
 };
 
+/**
+ * POST /api/facility/maintenance
+ * Records a technician dispatch for authenticated staff and returns its contact
+ * details. The maintenance event feeds monthly variable expenses; persistence
+ * is best-effort so a reporting failure cannot change the successful response.
+ */
 export const callMaintenance = async (req, res) => {
   const entry = {
     called_at: new Date().toISOString(),
@@ -540,6 +565,10 @@ export const removeSpace = async (req, res, next) => {
 
 /* ---------- Manager CRUD: Installers ---------- */
 
+/**
+ * GET /api/facility/installers
+ * Manager view of the full installer fleet, ordered by installer id.
+ */
 export const listInstallers = async (_req, res, next) => {
   try {
     const { data, error } = await supabase
@@ -553,6 +582,11 @@ export const listInstallers = async (_req, res, next) => {
   }
 };
 
+/**
+ * POST /api/facility/installers
+ * Creates a free installer from the route-validated `{ installer_name,
+ * Manufacturer }` body and returns the new row with HTTP 201.
+ */
 export const addInstaller = async (req, res, next) => {
   try {
     const { installer_name, Manufacturer } = req.body;
@@ -573,6 +607,11 @@ export const addInstaller = async (req, res, next) => {
   }
 };
 
+/**
+ * DELETE /api/facility/installers/:id
+ * Removes an idle installer. Missing installers return 404, and a unit that is
+ * still busy is protected from removal with HTTP 409.
+ */
 export const removeInstaller = async (req, res, next) => {
   try {
     const id = Number(req.params.id);

@@ -12,20 +12,31 @@ import { useAuthStore } from '@/store/authStore';
 import { useLogout } from '@/hooks/useAuth';
 
 interface Props {
+  /** Single navigation source rendered in both the desktop and mobile menus. */
   items: SidebarItem[];
+  /** Tailwind gradient classes used to theme role-specific navigation chrome. */
   brandColor: string;
+  /** Human-readable role name; falls back to the authenticated user's role. */
   roleLabel?: string;
+  /** Optional desktop-only content rendered above the current child route. */
   topBar?: ReactNode;
   /** When set, the user name/email block links to this route (Profile). */
   profileTo?: string;
 }
 
+/**
+ * Shared authenticated shell for every role dashboard.
+ *
+ * It combines responsive navigation, the nested route Outlet, route-change
+ * transitions, optional profile navigation, and the global assistant widget.
+ */
 export function DashboardLayout({ items, brandColor, roleLabel, topBar, profileTo }: Props) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
   const user = useAuthStore((s) => s.user);
   const logout = useLogout();
 
+  // A completed mobile navigation must not leave the drawer over the new page.
   useEffect(() => {
     setMobileOpen(false);
   }, [location.pathname]);

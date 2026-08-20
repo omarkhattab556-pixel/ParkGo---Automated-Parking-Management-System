@@ -21,6 +21,16 @@ const signToken = (user) =>
     { expiresIn: JWT.EXPIRES_IN }
   );
 
+/**
+ * POST /api/auth/login
+ * Body: `{ email, password }` (validated and normalized by the route).
+ *
+ * Applies the account/IP brute-force gate before querying the database, treats
+ * unknown emails and wrong passwords identically, and rejects inactive
+ * subscribers. A successful response contains a signed JWT plus the user row
+ * with its password removed. Lockouts return HTTP 429 with `Retry-After`;
+ * invalid credentials return 401 and inactive subscriptions return 403.
+ */
 export const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
@@ -98,6 +108,11 @@ export const login = async (req, res, next) => {
   }
 };
 
+/**
+ * GET /api/auth/me
+ * Reloads the authenticated user's current database row and returns it without
+ * the password field. Returns HTTP 404 if the JWT identifies a removed user.
+ */
 export const me = async (req, res, next) => {
   try {
     const { data: user, error } = await supabase
@@ -115,6 +130,10 @@ export const me = async (req, res, next) => {
   }
 };
 
+/**
+ * POST /api/auth/logout
+ * Acknowledges client-side logout; no server session or token blacklist exists.
+ */
 export const logout = (_req, res) => {
   // JWT is stateless — client just drops the token. Endpoint exists for symmetry.
   return res.json({ success: true });

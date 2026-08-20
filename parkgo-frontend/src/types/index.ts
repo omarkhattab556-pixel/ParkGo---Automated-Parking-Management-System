@@ -1,7 +1,14 @@
+/**
+ * Shared frontend view of backend DTOs.
+ *
+ * Field names intentionally preserve the API's snake_case contract, and date
+ * or time strings are ISO timestamps unless a field explicitly says otherwise.
+ */
 export type UserType = 'subscriber' | 'attendant' | 'manager';
 export type StatusEnum = 'active' | 'inactive';
 export type ReservationStatus = 'active' | 'cancelled';
 
+/** Base identity shared by every authenticated role. */
 export interface User {
   id: number;
   first_name: string;
@@ -11,6 +18,7 @@ export interface User {
   user_type: UserType;
 }
 
+/** Subscriber-only membership data kept separate from the base User record. */
 export interface Subscriber {
   subscriber_num: number;
   registration_date: string;
@@ -32,6 +40,7 @@ export interface ParkingSpace {
   retired_at?: string | null;
 }
 
+/** Reservation lifecycle data returned by reservation endpoints. */
 export interface Reservation {
   reservation_id: number;
   subscriber_num: number;
@@ -43,6 +52,7 @@ export interface Reservation {
   created_at: string;
 }
 
+/** Active or historical parking-session data returned by parking endpoints. */
 export interface Parking {   // זה יהיה בתוך  PROMISE של ה-API
   parking_code: number;
   parking_space: number;

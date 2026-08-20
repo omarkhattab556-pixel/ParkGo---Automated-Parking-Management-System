@@ -1,6 +1,13 @@
+/**
+ * Cross-feature frontend configuration and shared business-rule mirrors.
+ *
+ * UI rules provide early feedback only; the backend remains authoritative and
+ * must enforce the same limits for every request.
+ */
 export const APP_NAME = import.meta.env.VITE_APP_NAME || 'ParkGo';
 export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
+/** Frontend mirrors used for validation, limits, and explanatory UI. */
 export const BUSINESS_RULES = {
   MAX_PARKING_HOURS: 4,
   MAX_EXTENSION_HOURS: 4,
@@ -12,12 +19,14 @@ export const BUSINESS_RULES = {
   INSTALLER_OPERATION_SECONDS: 20,
 } as const;
 
+/** Canonical post-login destination used by routing and auth workflows. */
 export const ROLE_LANDING: Record<string, string> = {
   subscriber: '/subscriber',
   attendant: '/attendant',
   manager: '/manager',
 };
 
+/** Persisted keys shared by the auth store and the Axios token reader. */
 export const STORAGE_KEYS = {
   AUTH: 'parkgo-auth',
 } as const;

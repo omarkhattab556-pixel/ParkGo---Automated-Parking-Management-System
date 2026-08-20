@@ -1,3 +1,9 @@
+/**
+ * Application composition root.
+ *
+ * Owns the global error, server-state, routing, notification, and suspense
+ * providers, then declares the lazy route tree for each user role.
+ */
 import { lazy, Suspense } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -55,6 +61,10 @@ const ManagerAttendantsPage = lazy(
   () => import('@/pages/manager/ManagerAttendantsPage')
 );
 
+/**
+ * Shared server-state defaults. Individual queries may override these values
+ * when their data needs a different freshness or polling policy.
+ */
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -65,6 +75,10 @@ const queryClient = new QueryClient({
   },
 });
 
+/**
+ * Resolves the neutral root URL from the cached auth snapshot. The destination
+ * role tree is still wrapped by ProtectedRoute, which verifies the session.
+ */
 function RoleRedirect() {
   const user = useAuthStore((s) => s.user);
   const isAuth = useAuthStore((s) => s.isAuthenticated);

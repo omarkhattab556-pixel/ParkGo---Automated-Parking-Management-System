@@ -217,6 +217,12 @@ function SectionShell({
   );
 }
 
+/**
+ * Subscriber landing page combining live capacity, the current parking timer,
+ * upcoming reservations, monthly billing, quick actions, and the 3D lot view.
+ * Spot data is reduced to the subscriber-safe representation before rendering,
+ * so other drivers' occupancy and identity are never exposed by this screen.
+ */
 export default function SubscriberDashboard() {
   const user = useAuthStore((s) => s.user);
   const load = useFacilityLoad(10_000);
